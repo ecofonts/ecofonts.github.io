@@ -7,6 +7,23 @@ const DEFAULT_PREVIEW_TEXT = "Handgloves 0123";
 const PREVIEW_FAMILY_ORIGINAL = "eco-preview-original";
 const PREVIEW_FAMILY_ECO = "eco-preview-eco";
 
+declare global {
+    interface Window {
+        umami?: { track: (event: string, data?: Record<string, string | number>) => void };
+    }
+}
+
+// The umami script is loaded async and may be blocked; never let analytics
+// interfere with processing.
+function trackOptimize(file: File, intensity: number) {
+    try {
+        window.umami?.track("optimize", {
+            type: file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase() || "unknown",
+            intensity,
+        });
+    } catch {}
+}
+
 export default function FontOptimizer() {
     const [files, setFiles] = useState<File[]>([]);
     const [intensity, setIntensity] = useState(10);
@@ -109,6 +126,7 @@ export default function FontOptimizer() {
             const { processUpload } = await import("../lib/pipeline");
             for (let i = 0; i < targets.length; i++) {
                 const target = targets[i];
+                trackOptimize(target, intensity);
                 setBatch({ index: i + 1, total: targets.length });
                 setProgress(null);
                 try {
