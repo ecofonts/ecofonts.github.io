@@ -57,9 +57,13 @@ area the wall protection preserves). Tuning constants live at the top of
 - **opentype.js writes CFF-flavored OpenType** (`OTTO` sfnt), not glyf-based
   TrueType. The output installs and renders everywhere; original filenames
   and extensions are preserved.
-- **GSUB is dropped** before writing: opentype.js throws on GSUB lookup
-  types it can't serialize (e.g. type 7 in Arial). Ligatures and similar
-  optional substitutions are lost; outlines and metrics are unaffected.
+- **GSUB and variation tables (fvar/avar/cvar/gvar/stat) are dropped**
+  before writing. opentype.js throws on GSUB lookup types it can't serialize
+  (e.g. type 7 in Arial) and on fvar axis values that overflow its 16.16
+  encoder (e.g. Sitka, Segoe UI Variable); the variation tables would be
+  invalid anyway since the rewritten outlines are the default instance only.
+  Ligatures and variation axes are lost; outlines and metrics are unaffected.
+  Variable inputs produce a `warnings` entry in the pipeline result.
 - **Never statically import opentype.js from component code.** Astro's
   prerender pass loads modules in plain Node, where opentype.js resolves as
   CJS and its named ESM imports crash the build (`vite.ssr.noExternal` does

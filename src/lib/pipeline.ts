@@ -58,15 +58,18 @@ async function processSingleTtf(
     intensity: number,
     onProgress?: ProgressCallback,
 ): Promise<EcoResult> {
-    const { buffer, font } = await processTtf(data, intensity, (glyphsDone, glyphsTotal) =>
-        onProgress?.({ fileName, fileIndex: 1, fileCount: 1, glyphsDone, glyphsTotal }),
+    const { buffer, font, droppedVariations } = await processTtf(
+        data,
+        intensity,
+        (glyphsDone, glyphsTotal) =>
+            onProgress?.({ fileName, fileIndex: 1, fileCount: 1, glyphsDone, glyphsTotal }),
     );
     return {
         fileName,
         mimeType: "application/x-font-ttf",
         data: buffer,
         processedFonts: [fileName],
-        warnings: [],
+        warnings: droppedVariations ? [variableFontWarning(fileName)] : [],
         previewOriginal: safeParse(data),
         previewProcessed: font,
     };
@@ -95,20 +98,24 @@ async function processZip(
         const entry = entries[i];
         const original = await entry.async("arraybuffer");
         try {
-            const { buffer, font } = await processTtf(original, intensity, (done, total) =>
-                onProgress?.({
-                    fileName: entry.name,
-                    fileIndex: i + 1,
-                    fileCount: entries.length,
-                    glyphsDone: done,
-                    glyphsTotal: total,
-                }),
+            const { buffer, font, droppedVariations } = await processTtf(
+                original,
+                intensity,
+                (done, total) =>
+                    onProgress?.({
+                        fileName: entry.name,
+                        fileIndex: i + 1,
+                        fileCount: entries.length,
+                        glyphsDone: done,
+                        glyphsTotal: total,
+                    }),
             );
             // Re-adding under the same path replaces the entry in place, so
             // the archive keeps its exact structure; non-font files (licenses,
             // variable-font originals, etc.) pass through untouched.
             zip.file(entry.name, buffer);
             processedFonts.push(entry.name);
+            if (droppedVariations) warnings.push(variableFontWarning(entry.name));
             if (!previewProcessed) {
                 previewProcessed = font;
                 previewOriginal = safeParse(original);
@@ -136,6 +143,10 @@ async function processZip(
         previewOriginal,
         previewProcessed,
     };
+}
+
+function variableFontWarning(name: string): string {
+    return `${name}: variable font — the output contains only the default (static) instance`;
 }
 
 function safeParse(data: ArrayBuffer): Font | null {

@@ -49,11 +49,18 @@ export function parseFont(data: ArrayBuffer): Font {
  * @param intensity target fraction of interior ink to remove (0.01–0.20)
  * @returns the new binary plus the mutated Font object (usable for previews)
  */
+export interface ProcessedTtf {
+    buffer: ArrayBuffer;
+    font: Font;
+    /** True when the input was a variable font (axes cannot survive the rewrite). */
+    droppedVariations: boolean;
+}
+
 export async function processTtf(
     data: ArrayBuffer,
     intensity: number,
     onGlyph?: GlyphProgressCallback,
-): Promise<{ buffer: ArrayBuffer; font: Font }> {
+): Promise<ProcessedTtf> {
     const font = parse(data);
     const upem = font.unitsPerEm || 1000;
     const total = font.glyphs.length;
@@ -87,13 +94,22 @@ export async function processTtf(
     }
     onGlyph?.(total, total);
 
-    // opentype.js cannot re-serialize every GSUB lookup type found in
-    // real-world fonts (e.g. type 7 extension lookups, as in Arial) and
-    // throws while writing. Drop the table instead of failing: it carries
-    // optional substitutions (ligatures etc.), not outlines or metrics.
-    delete (font.tables as Record<string, unknown>).gsub;
+    // opentype.js re-serializes optional tables it parsed, but our rewrite
+    // invalidates some of them or trips writer bugs:
+    // - gsub: the writer throws on lookup types it doesn't support (e.g.
+    //   type 7 extension lookups, as in Arial); only optional substitutions
+    //   such as ligatures are lost.
+    // - fvar/avar/cvar/gvar/stat: variation tables. The rewritten outlines
+    //   are the default instance only, so they'd be lies — and fvar axis
+    //   values can overflow the writer's 16.16 encoder ("Value 32768 is
+    //   outside the range..." on e.g. Sitka or Segoe UI Variable).
+    const tables = font.tables as Record<string, unknown>;
+    const droppedVariations = Boolean(tables.fvar);
+    for (const name of ["gsub", "fvar", "avar", "cvar", "gvar", "stat"]) {
+        delete tables[name];
+    }
 
-    return { buffer: font.toArrayBuffer(), font };
+    return { buffer: font.toArrayBuffer(), font, droppedVariations };
 }
 
 /**
