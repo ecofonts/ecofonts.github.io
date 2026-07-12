@@ -62,9 +62,23 @@ browser.
   subsets no).
   Files are processed sequentially; one failure never aborts the batch.
   Styled by [src/components/FontOptimizer.css](src/components/FontOptimizer.css) using the shared design
-  tokens. Loads the pipeline with a dynamic `import()` on first use — this
-  keeps the heavy libraries out of the initial bundle **and out of Astro's
-  prerender pass** (see gotchas).
+  tokens. Loads the worker client with a dynamic `import()` on first use —
+  this keeps the heavy libraries out of the initial bundle **and out of
+  Astro's prerender pass** (see gotchas). A Web Lock is held for the whole
+  batch so Chrome doesn't freeze the tab while it's hidden mid-job (frozen
+  pages pause their workers too).
+- [src/lib/workerClient.ts](src/lib/workerClient.ts) + [src/lib/pipeline.worker.ts](src/lib/pipeline.worker.ts) — processing runs in a
+  **dedicated Web Worker** so it continues at full speed in background tabs
+  (browsers clamp hidden-tab main-thread timers to ≥1s, which would stall
+  the pipeline's cooperative `setTimeout(0)` yields; workers are exempt) and
+  heavy glyphs never jank the UI. The client lazily spawns the worker,
+  multiplexes jobs by id (progress stream + final done/error message), and
+  falls back to running the pipeline inline on the main thread when module
+  workers are unavailable. The worker transfers result buffers back
+  **deduped** — the `.ttf` path aliases the output and preview buffers to
+  the same ArrayBuffer, and a duplicate in a transfer list throws.
+  `vite.worker.format` is `'es'` (astro.config) so the worker keeps pdf-lib
+  behind its dynamic import instead of inlining it into the worker chunk.
 - [src/lib/limits.ts](src/lib/limits.ts) — single source of truth for selection validation,
   used by both the landing drop zone and the optimizer (they once drifted;
   don't duplicate the rules again). Per-selection maximums: 20 PDFs, 100

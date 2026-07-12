@@ -121,22 +121,33 @@ export default function FontOptimizer() {
         const collected: EcoResult[] = [];
         const failed: string[] = [];
         try {
-            // Loaded on demand: keeps the processing libraries out of the
-            // initial bundle and out of the server-side prerender pass.
-            const { processUpload } = await import("../lib/pipeline");
-            for (let i = 0; i < targets.length; i++) {
-                const target = targets[i];
-                trackOptimize(target, intensity);
-                setBatch({ index: i + 1, total: targets.length });
-                setProgress(null);
-                try {
-                    const data = await target.arrayBuffer();
-                    collected.push(await processUpload(target.name, data, intensity, setProgress));
-                } catch (err) {
-                    failed.push(
-                        `${target.name}: ${err instanceof Error ? err.message : String(err)}`,
-                    );
+            // Loaded on demand: keeps the processing machinery out of the
+            // initial bundle and out of the server-side prerender pass. The
+            // heavy work itself runs in a Web Worker, so it continues at
+            // full speed while the tab is in the background.
+            const { processUploadInWorker } = await import("../lib/workerClient");
+            const runBatch = async () => {
+                for (let i = 0; i < targets.length; i++) {
+                    const target = targets[i];
+                    trackOptimize(target, intensity);
+                    setBatch({ index: i + 1, total: targets.length });
+                    setProgress(null);
+                    try {
+                        collected.push(await processUploadInWorker(target, intensity, setProgress));
+                    } catch (err) {
+                        failed.push(
+                            `${target.name}: ${err instanceof Error ? err.message : String(err)}`,
+                        );
+                    }
                 }
+            };
+            // Holding a Web Lock while the batch runs keeps Chrome from
+            // freezing the hidden tab mid-job (frozen pages pause their
+            // workers too).
+            if (navigator.locks) {
+                await navigator.locks.request("ecofonts-optimize", runBatch);
+            } else {
+                await runBatch();
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err));

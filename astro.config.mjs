@@ -18,5 +18,11 @@ export default defineConfig({
       // dynamically imported module".
       include: ['opentype.js', 'jszip', 'clipper-lib', 'pdf-lib'],
     },
+    worker: {
+      // The pipeline worker keeps pdf-lib behind a dynamic import(); the
+      // default iife format would inline it into the worker chunk and make
+      // every user download it, PDFs or not.
+      format: 'es',
+    },
   },
 });
