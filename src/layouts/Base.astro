@@ -227,6 +227,11 @@ const socialImage = new URL("/og.png", site);
 					background-color 0.25s,
 					color 0.25s;
 			}
+			/* Flex items with auto margins shrink to fit; keep the page's
+			   max-width containers (nav, hero, main) spanning full width. */
+			body > * {
+				width: 100%;
+			}
 			code {
 				background: var(--code-bg);
 				padding: 2px 7px;
