@@ -43,7 +43,7 @@ export default function FontOptimizer() {
     function acceptFile(candidate: File | undefined) {
         if (busy) return;
         if (!candidate || !ACCEPTED_RE.test(candidate.name)) {
-            setError("Please choose a .ttf font, a .zip archive, or a .pdf document.");
+            setError("Please choose a .pdf document, a .zip archive, or a .ttf font.");
             return;
         }
         setFile(candidate);
@@ -93,19 +93,19 @@ export default function FontOptimizer() {
 
     return (
         <main className="eco-main">
-            <h1>Font optimizer</h1>
+            <h1>Optimize your PDF or font</h1>
             <p className="eco-lede">
-                Upload a <code>.ttf</code> font, a <code>.zip</code> of fonts, or a{" "}
-                <code>.pdf</code> document. Ecofonts punches tiny holes into every glyph — in a
-                PDF, every embedded font gets optimized — so printing uses less ink. Everything
-                runs in your browser — files never leave your machine.
+                Upload a <code>.pdf</code> document and every font embedded in it gets tiny
+                ink-saving holes — or optimize a <code>.zip</code> font family or a single{" "}
+                <code>.ttf</code> directly. Everything runs in your browser — files never leave
+                your machine.
             </p>
 
             <div
                 className={dropzoneClass}
                 role="button"
                 tabIndex={0}
-                aria-label="Drop a .ttf, .zip or .pdf file here, or press Enter to browse"
+                aria-label="Drop a .pdf, .zip or .ttf file here, or press Enter to browse"
                 onClick={() => !busy && inputRef.current?.click()}
                 onKeyDown={(event) => {
                     if (!busy && (event.key === "Enter" || event.key === " ")) {
@@ -125,17 +125,17 @@ export default function FontOptimizer() {
                 }}
             >
                 <p>
-                    <strong>{file ? file.name : "Drop your font or PDF here"}</strong>
+                    <strong>{file ? file.name : "Drop your PDF or font here"}</strong>
                 </p>
                 <p className="eco-hint">
                     {file
                         ? `${Math.max(1, Math.round(file.size / 1024))} KB — click to change`
-                        : ".ttf, .zip or .pdf — or click to browse"}
+                        : ".pdf, .zip or .ttf — or click to browse"}
                 </p>
                 <input
                     ref={inputRef}
                     type="file"
-                    accept=".ttf,.zip,.pdf"
+                    accept=".pdf,.zip,.ttf"
                     hidden
                     onChange={(event) => acceptFile(event.target.files?.[0])}
                     disabled={busy}

@@ -1,162 +1,187 @@
 ---
 // Ecofonts landing page. The drop zone stashes the file in IndexedDB
 // (src/lib/handoff.ts) and redirects to /font, which picks it up.
+import Base from "../layouts/Base.astro";
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<meta
-			name="description"
-			content="Ecofonts punches microscopic holes into your fonts so they print with less ink. 100% in your browser — your files never leave your computer."
-		/>
-		<title>Ecofonts — Save Ink, Save the planet</title>
-	</head>
-	<body>
-		<nav>
-			<a class="brand" href="/">
-				<img src="/favicon.svg" alt="Ecofonts logo" width="36" height="36" />
-				<span>Ecofonts</span>
-			</a>
-			<a class="btn" href="/font">Open the optimizer</a>
-		</nav>
+<Base
+	title="Ecofonts — Save Ink, Save the planet"
+	description="Drop a PDF and Ecofonts rewrites every embedded font with microscopic ink-saving holes — 100% in your browser. Fonts and font families work too."
+>
+	<a slot="nav-actions" class="btn" href="/font">Open the optimizer</a>
 
-		<header class="hero">
-			<h1>Save Ink, <span class="accent">Save the planet</span></h1>
-			<p class="tagline">
-				Ecofonts punches microscopic holes into every letter of your fonts and PDFs. Your
-				documents look the same — your printer uses up to 20% less ink.
-			</p>
+	<header class="hero">
+		<p class="badge">100% in your browser — nothing gets uploaded</p>
+		<h1>Save Ink, <span class="accent">Save the planet</span></h1>
+		<p class="tagline">
+			Drop a PDF and Ecofonts rewrites every font inside it with microscopic holes your eyes
+			never notice — but your printer does. Same document, same look, up to 20% less ink.
+			Fonts and whole font families work too.
+		</p>
 
-			<div
-				id="dropzone"
-				role="button"
-				tabindex="0"
-				aria-label="Drop a .ttf, .zip or .pdf file here, or press Enter to browse"
-			>
-				<img src="/favicon.svg" alt="" width="48" height="48" />
-				<p><strong>Drop your font or PDF here</strong></p>
-				<p class="hint">.ttf, .zip or .pdf — or click to browse</p>
-				<input id="drop-input" type="file" accept=".ttf,.zip,.pdf" hidden />
+		<div
+			id="dropzone"
+			role="button"
+			tabindex="0"
+			aria-label="Drop a .pdf, .zip or .ttf file here, or press Enter to browse"
+		>
+			<img src="/favicon.svg" alt="" width="52" height="52" />
+			<p><strong>Drop your PDF here</strong></p>
+			<p class="hint">.pdf, .zip or .ttf — or click to browse</p>
+			<input id="drop-input" type="file" accept=".pdf,.zip,.ttf" hidden />
+		</div>
+		<p id="drop-error" role="alert" hidden>
+			Please choose a .pdf document, a .zip archive, or a .ttf font.
+		</p>
+
+		<ul class="stats">
+			<li>Up to <strong>20% less ink</strong></li>
+			<li><strong>Private</strong> by design</li>
+			<li><strong>Free</strong> and open source</li>
+		</ul>
+	</header>
+
+	<main>
+		<section>
+			<h2>How it works</h2>
+			<div class="grid three">
+				<article class="card">
+					<span class="step">1</span>
+					<h3>Upload</h3>
+					<p>
+						Drop a <code>.pdf</code> document — every embedded font gets optimized. A
+						<code>.ttf</code> font or a whole <code>.zip</code> family works just as well.
+					</p>
+				</article>
+				<article class="card">
+					<span class="step">2</span>
+					<h3>Tune</h3>
+					<p>
+						Pick your Eco Intensity from 1% to 20%. The value is honest — it's the measured
+						share of ink actually removed from the letters.
+					</p>
+				</article>
+				<article class="card">
+					<span class="step">3</span>
+					<h3>Download</h3>
+					<p>
+						Get the same file back — identical name, structure, and layout — ready to print
+						lighter on ink.
+					</p>
+				</article>
 			</div>
-			<p id="drop-error" role="alert" hidden>
-				Please choose a .ttf font, a .zip archive, or a .pdf document.
+		</section>
+
+		<section class="alt">
+			<h2>Why Ecofonts?</h2>
+			<div class="grid four">
+				<article class="card">
+					<h3>🖨️ Whole PDFs, one drop</h3>
+					<p>
+						Reports, invoices, handouts — drop the finished PDF and every embedded font is
+						rewritten in place. Layout untouched, text still selectable.
+					</p>
+				</article>
+				<article class="card">
+					<h3>🔒 Private by design</h3>
+					<p>
+						No uploads, no servers, no accounts. Parsing, geometry, and packaging all happen on
+						your machine.
+					</p>
+				</article>
+				<article class="card">
+					<h3>👓 Invisible at print size</h3>
+					<p>
+						The holes are tiny and never touch the outline of a letter, so text stays crisp and
+						legible at reading sizes.
+					</p>
+				</article>
+				<article class="card">
+					<h3>✒️ Honest ink savings</h3>
+					<p>
+						The intensity you choose is the ink you save — we measure the actual area removed
+						from every glyph, not a marketing number.
+					</p>
+				</article>
+			</div>
+		</section>
+
+		<section id="google-fonts">
+			<h2>Using a font from Google Fonts</h2>
+			<p class="section-lede">
+				No integration needed — Google Fonts already gives you exactly what Ecofonts eats.
 			</p>
-			<p class="privacy">Everything runs in your browser. Your font never leaves your computer.</p>
-		</header>
+			<ol class="gf-steps">
+				<li>
+					<strong>Find your font</strong> on
+					<a href="https://fonts.google.com" target="_blank" rel="noopener noreferrer"
+						>fonts.google.com</a
+					> and open its page.
+				</li>
+				<li>
+					<strong>Click “Get font”, then “Download all”.</strong> You'll get a
+					<code>.zip</code> with every weight and style of the family.
+				</li>
+				<li>
+					<strong>Drop that <code>.zip</code> right here.</strong> Ecofonts optimizes each font
+					inside — including the fixed-weight copies in the <code>static/</code> folder — and
+					returns the archive with its structure intact, ready to install.
+				</li>
+			</ol>
+		</section>
 
-		<main>
-			<section>
-				<h2>How it works</h2>
-				<div class="grid three">
-					<article class="card">
-						<span class="step">1</span>
-						<h3>Upload</h3>
-						<p>
-							Drop a <code>.ttf</code> file, a whole <code>.zip</code> font family — like the
-							ones you download from Google Fonts — or a <code>.pdf</code> document.
-						</p>
-					</article>
-					<article class="card">
-						<span class="step">2</span>
-						<h3>Tune</h3>
-						<p>
-							Pick your Eco Intensity from 1% to 20% and preview the result before and after,
-							right in the page.
-						</p>
-					</article>
-					<article class="card">
-						<span class="step">3</span>
-						<h3>Download</h3>
-						<p>
-							Get your optimized font back with the same file name and folder structure, ready
-							to install and print with.
-						</p>
-					</article>
-				</div>
-			</section>
-
-			<section class="alt">
-				<h2>Why Ecofonts?</h2>
-				<div class="grid four">
-					<article class="card">
-						<h3>🔒 Private by design</h3>
-						<p>
-							No uploads, no servers, no accounts. The processing happens entirely on your
-							machine.
-						</p>
-					</article>
-					<article class="card">
-						<h3>✒️ Real ink savings</h3>
-						<p>
-							The intensity you choose is the ink you save — we measure the actual area removed
-							from every glyph, not a marketing number.
-						</p>
-					</article>
-					<article class="card">
-						<h3>👓 Invisible at print size</h3>
-						<p>
-							The holes are tiny and never touch the outline of a letter, so text stays crisp
-							and legible at reading sizes.
-						</p>
-					</article>
-					<article class="card">
-						<h3>📦 Family-friendly</h3>
-						<p>
-							Zip archives keep their exact structure — every weight and style inside gets
-							optimized, licenses and readmes ride along untouched.
-						</p>
-					</article>
-				</div>
-			</section>
-
-			<section id="faq">
-				<h2>FAQ</h2>
+		<section id="faq" class="alt">
+			<h2>FAQ</h2>
+			<div class="faq-list">
 				<details>
 					<summary>How does this work?</summary>
 					<p>
-						Ecofonts reads the vector outlines of every glyph in your font, then subtracts a
-						fine grid of tiny holes from the interior of each letter using boolean geometry —
-						the same kind of operation vector editors use. The outer silhouette of every letter
-						is left untouched, so shapes stay recognizable. The modified outlines are compiled
-						back into a font file you can install anywhere.
+						Ecofonts reads the vector outlines of every glyph — in a PDF, from each embedded
+						font — then subtracts a fine grid of tiny holes from the interior of each letter
+						using boolean geometry, the same kind of operation vector editors use. The outer
+						silhouette of every letter is left untouched, so shapes stay recognizable. The
+						modified outlines are compiled back into the file you uploaded.
+					</p>
+				</details>
+				<details>
+					<summary>Can I optimize a whole PDF?</summary>
+					<p>
+						Yes — that's the main event. Drop a <code>.pdf</code> and Ecofonts finds every
+						TrueType font embedded in the document, punches the eco holes into its glyphs, and
+						rebuilds the file. The layout, images, and text stay exactly as they were — the
+						text even remains selectable. Fonts embedded in other formats (Type 1/CFF) are left
+						unchanged, and you'll see a note when that happens.
 					</p>
 				</details>
 				<details>
 					<summary>Does this work completely on my computer?</summary>
 					<p>
 						Yes — 100%. There is no server: parsing, geometry, and packaging all run in your
-						browser. Your font file is never uploaded anywhere, and the page even works offline
+						browser. Your files are never uploaded anywhere, and the page even works offline
 						once it has loaded.
 					</p>
 				</details>
 				<details>
 					<summary>Which files are supported?</summary>
 					<p>
-						A single <code>.ttf</code> font, a <code>.zip</code> archive containing
-						<code>.ttf</code> fonts — including nested folders such as the
-						<code>static/</code> directory in Google Fonts downloads — or a
-						<code>.pdf</code> document. Archives come back with their exact structure
-						preserved.
+						A <code>.pdf</code> document, a single <code>.ttf</code> font, or a
+						<code>.zip</code> archive containing <code>.ttf</code> fonts — including nested
+						folders such as the <code>static/</code> directory in Google Fonts downloads.
+						Archives come back with their exact structure preserved.
 					</p>
 				</details>
 				<details>
-					<summary>Can I optimize a whole PDF?</summary>
+					<summary>How do I use a font from Google Fonts?</summary>
 					<p>
-						Yes. Drop a <code>.pdf</code> and Ecofonts finds every TrueType font embedded in
-						the document, punches the eco holes into its glyphs, and rebuilds the file. The
-						layout, images, and text stay exactly as they were — the text even remains
-						selectable. Fonts embedded in other formats (Type 1/CFF) are left unchanged, and
-						you'll see a note when that happens.
+						Download the family from fonts.google.com (“Get font” → “Download all”) and drop
+						the resulting <code>.zip</code> here — see the
+						<a href="#google-fonts">step-by-step guide</a> above.
 					</p>
 				</details>
 				<details>
 					<summary>Will my text still look good?</summary>
 					<p>
-						Yes. A minimum "wall" of ink is always preserved around every hole, so the edges of
+						Yes. A minimum “wall” of ink is always preserved around every hole, so the edges of
 						each letter stay solid and sharp. At typical reading sizes the holes are too small
 						to notice — they simply let your printer skip ink the eye never misses.
 					</p>
@@ -186,254 +211,297 @@
 						anything.
 					</p>
 				</details>
-			</section>
-		</main>
+			</div>
+		</section>
+	</main>
 
-		<footer>
-			<img src="/favicon.svg" alt="" width="24" height="24" />
-			<p>Ecofonts — fonts that print lighter. Runs entirely in your browser.</p>
-		</footer>
+	<script>
+		import { stashFile } from "../lib/handoff";
 
-		<script>
-			import { stashFile } from "../lib/handoff";
+		const zone = document.getElementById("dropzone");
+		const input = document.getElementById("drop-input") as HTMLInputElement | null;
+		const error = document.getElementById("drop-error");
 
-			const zone = document.getElementById("dropzone");
-			const input = document.getElementById("drop-input") as HTMLInputElement | null;
-			const error = document.getElementById("drop-error");
-
-			async function send(file: File | undefined): Promise<void> {
-				if (!file || !/\.(ttf|zip|pdf)$/i.test(file.name)) {
-					error?.removeAttribute("hidden");
-					return;
-				}
-				error?.setAttribute("hidden", "");
-				try {
-					await stashFile(file);
-				} catch {
-					// If storage fails the user can simply re-pick the file on /font.
-				}
-				window.location.href = "/font";
+		async function send(file: File | undefined): Promise<void> {
+			if (!file || !/\.(ttf|zip|pdf)$/i.test(file.name)) {
+				error?.removeAttribute("hidden");
+				return;
 			}
+			error?.setAttribute("hidden", "");
+			try {
+				await stashFile(file);
+			} catch {
+				// If storage fails the user can simply re-pick the file on /font.
+			}
+			window.location.href = "/font";
+		}
 
-			if (zone && input) {
-				zone.addEventListener("click", () => input.click());
-				zone.addEventListener("keydown", (event) => {
-					if (event.key === "Enter" || event.key === " ") {
-						event.preventDefault();
-						input.click();
-					}
-				});
-				input.addEventListener("change", () => void send(input.files?.[0]));
-				zone.addEventListener("dragover", (event) => {
+		if (zone && input) {
+			zone.addEventListener("click", () => input.click());
+			zone.addEventListener("keydown", (event) => {
+				if (event.key === "Enter" || event.key === " ") {
 					event.preventDefault();
-					zone.classList.add("dragover");
-				});
-				zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
-				zone.addEventListener("drop", (event) => {
-					event.preventDefault();
-					zone.classList.remove("dragover");
-					void send(event.dataTransfer?.files?.[0]);
-				});
-			}
-		</script>
+					input.click();
+				}
+			});
+			input.addEventListener("change", () => void send(input.files?.[0]));
+			zone.addEventListener("dragover", (event) => {
+				event.preventDefault();
+				zone.classList.add("dragover");
+			});
+			zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+			zone.addEventListener("drop", (event) => {
+				event.preventDefault();
+				zone.classList.remove("dragover");
+				void send(event.dataTransfer?.files?.[0]);
+			});
+		}
+	</script>
 
-		<style>
-			:root {
-				--green: #01bf63;
-				--green-dark: #019a50;
-				--green-tint: #e9faf1;
-				--ink: #12211a;
-				--muted: #5b6b62;
-				--line: #e3ece7;
-			}
-			* {
-				box-sizing: border-box;
-			}
-			body {
-				margin: 0;
-				font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-				color: var(--ink);
-				background: #fff;
-				line-height: 1.6;
-			}
+	<style>
+		.hero {
+			position: relative;
+			max-width: 760px;
+			margin: 0 auto;
+			padding: 64px 24px 72px;
+			text-align: center;
+		}
+		.hero::before {
+			content: "";
+			position: absolute;
+			inset: -120px 0 auto 0;
+			height: 420px;
+			background: radial-gradient(ellipse 60% 55% at 50% 0%, var(--glow), transparent 70%);
+			pointer-events: none;
+			z-index: -1;
+		}
+		.badge {
+			display: inline-block;
+			margin: 0 0 20px;
+			padding: 6px 16px;
+			border-radius: 999px;
+			border: 1px solid var(--border);
+			background: var(--surface);
+			color: var(--muted);
+			font-size: 0.85rem;
+			font-weight: 600;
+		}
+		h1 {
+			font-size: clamp(2.4rem, 6vw, 3.8rem);
+			line-height: 1.08;
+			letter-spacing: -0.03em;
+			margin: 0 0 18px;
+		}
+		.accent {
+			background: linear-gradient(120deg, var(--green), var(--green-bright));
+			-webkit-background-clip: text;
+			background-clip: text;
+			color: transparent;
+		}
+		.tagline {
+			font-size: 1.15rem;
+			color: var(--muted);
+			margin: 0 auto 36px;
+			max-width: 600px;
+		}
 
-			nav {
-				display: flex;
-				align-items: center;
-				justify-content: space-between;
-				max-width: 1040px;
-				margin: 0 auto;
-				padding: 16px 24px;
-			}
-			.brand {
-				display: flex;
-				align-items: center;
-				gap: 10px;
-				text-decoration: none;
-				color: var(--ink);
-				font-weight: 700;
-				font-size: 1.25rem;
-			}
-			.btn {
-				background: var(--green);
-				color: #fff;
-				text-decoration: none;
-				font-weight: 600;
-				padding: 10px 20px;
-				border-radius: 999px;
-				transition: background 0.15s;
-			}
-			.btn:hover {
-				background: var(--green-dark);
-			}
+		#dropzone {
+			max-width: 540px;
+			margin: 0 auto;
+			padding: 44px 24px;
+			border: 2px dashed var(--green);
+			border-radius: 20px;
+			background: var(--tint);
+			cursor: pointer;
+			transition:
+				background 0.15s,
+				transform 0.15s,
+				box-shadow 0.15s;
+		}
+		#dropzone:hover,
+		#dropzone:focus-visible,
+		#dropzone.dragover {
+			background: var(--tint-strong);
+			transform: translateY(-3px);
+			box-shadow: var(--shadow);
+			outline: none;
+		}
+		#dropzone p {
+			margin: 10px 0 0;
+			font-size: 1.05rem;
+		}
+		#dropzone .hint {
+			color: var(--muted);
+			font-size: 0.95rem;
+			margin-top: 4px;
+		}
+		#drop-error {
+			color: var(--error-ink);
+			margin-top: 14px;
+		}
+		.stats {
+			list-style: none;
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			gap: 10px;
+			margin: 28px 0 0;
+			padding: 0;
+		}
+		.stats li {
+			padding: 7px 16px;
+			border-radius: 999px;
+			border: 1px solid var(--border);
+			background: var(--surface);
+			color: var(--muted);
+			font-size: 0.9rem;
+		}
+		.stats strong {
+			color: var(--ink);
+		}
 
-			.hero {
-				max-width: 720px;
-				margin: 0 auto;
-				padding: 48px 24px 64px;
-				text-align: center;
-			}
-			h1 {
-				font-size: clamp(2.2rem, 5.5vw, 3.4rem);
-				line-height: 1.15;
-				margin: 0 0 16px;
-			}
-			.accent {
-				color: var(--green);
-			}
-			.tagline {
-				font-size: 1.15rem;
-				color: var(--muted);
-				margin: 0 auto 36px;
-				max-width: 560px;
-			}
+		main section {
+			padding: 72px 24px;
+		}
+		main section.alt {
+			background: var(--bg-soft);
+			border-top: 1px solid var(--border);
+			border-bottom: 1px solid var(--border);
+		}
+		h2 {
+			text-align: center;
+			font-size: clamp(1.7rem, 3.5vw, 2.2rem);
+			letter-spacing: -0.02em;
+			margin: 0 0 14px;
+		}
+		.section-lede {
+			text-align: center;
+			color: var(--muted);
+			max-width: 560px;
+			margin: 0 auto 40px;
+		}
+		section > .grid {
+			margin-top: 40px;
+		}
+		.grid {
+			display: grid;
+			gap: 20px;
+			max-width: 1080px;
+			margin: 0 auto;
+		}
+		.grid.three {
+			grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		}
+		.grid.four {
+			grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+		}
+		.card {
+			background: var(--surface);
+			border: 1px solid var(--border);
+			border-radius: 18px;
+			padding: 26px;
+			transition:
+				transform 0.15s,
+				box-shadow 0.15s,
+				border-color 0.15s;
+		}
+		.card:hover {
+			transform: translateY(-3px);
+			box-shadow: var(--shadow);
+			border-color: var(--green);
+		}
+		.card h3 {
+			margin: 0 0 8px;
+			font-size: 1.08rem;
+		}
+		.card p {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.96rem;
+		}
+		.step {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 34px;
+			height: 34px;
+			border-radius: 50%;
+			background: linear-gradient(135deg, var(--green), var(--green-bright));
+			color: #04160c;
+			font-weight: 800;
+			margin-bottom: 14px;
+		}
 
-			#dropzone {
-				max-width: 520px;
-				margin: 0 auto;
-				padding: 40px 24px;
-				border: 2px dashed var(--green);
-				border-radius: 16px;
-				background: var(--green-tint);
-				cursor: pointer;
-				transition:
-					background 0.15s,
-					transform 0.15s,
-					box-shadow 0.15s;
-			}
-			#dropzone:hover,
-			#dropzone:focus-visible,
-			#dropzone.dragover {
-				background: #d9f5e7;
-				transform: translateY(-2px);
-				box-shadow: 0 8px 24px rgba(1, 191, 99, 0.18);
-				outline: none;
-			}
-			#dropzone p {
-				margin: 8px 0 0;
-			}
-			#dropzone .hint {
-				color: var(--muted);
-				font-size: 0.95rem;
-			}
-			#drop-error {
-				color: #b00020;
-				margin-top: 12px;
-			}
-			.privacy {
-				margin-top: 20px;
-				font-size: 0.9rem;
-				color: var(--muted);
-			}
+		.gf-steps {
+			max-width: 640px;
+			margin: 0 auto;
+			padding: 0;
+			list-style: none;
+			counter-reset: gf;
+		}
+		.gf-steps li {
+			counter-increment: gf;
+			position: relative;
+			padding: 18px 20px 18px 66px;
+			margin-bottom: 14px;
+			background: var(--surface);
+			border: 1px solid var(--border);
+			border-radius: 16px;
+			color: var(--muted);
+		}
+		.gf-steps li strong {
+			color: var(--ink);
+		}
+		.gf-steps li::before {
+			content: counter(gf);
+			position: absolute;
+			left: 18px;
+			top: 50%;
+			transform: translateY(-50%);
+			width: 32px;
+			height: 32px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 50%;
+			background: linear-gradient(135deg, var(--green), var(--green-bright));
+			color: #04160c;
+			font-weight: 800;
+		}
+		.gf-steps a {
+			color: var(--green-hover);
+			font-weight: 600;
+		}
 
-			main section {
-				padding: 64px 24px;
-			}
-			main section.alt {
-				background: #f6fbf8;
-				border-top: 1px solid var(--line);
-				border-bottom: 1px solid var(--line);
-			}
-			h2 {
-				text-align: center;
-				font-size: 2rem;
-				margin: 0 0 40px;
-			}
-			.grid {
-				display: grid;
-				gap: 20px;
-				max-width: 1040px;
-				margin: 0 auto;
-			}
-			.grid.three {
-				grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-			}
-			.grid.four {
-				grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-			}
-			.card {
-				background: #fff;
-				border: 1px solid var(--line);
-				border-radius: 12px;
-				padding: 24px;
-			}
-			.card h3 {
-				margin: 0 0 8px;
-				font-size: 1.1rem;
-			}
-			.card p {
-				margin: 0;
-				color: var(--muted);
-				font-size: 0.97rem;
-			}
-			.step {
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				width: 32px;
-				height: 32px;
-				border-radius: 50%;
-				background: var(--green);
-				color: #fff;
-				font-weight: 700;
-				margin-bottom: 12px;
-			}
-
-			#faq {
-				max-width: 720px;
-				margin: 0 auto;
-			}
-			details {
-				border-bottom: 1px solid var(--line);
-				padding: 4px 0;
-			}
-			summary {
-				cursor: pointer;
-				font-weight: 600;
-				padding: 14px 0;
-				list-style-position: inside;
-			}
-			summary:hover {
-				color: var(--green-dark);
-			}
-			details p {
-				margin: 0 0 16px;
-				color: var(--muted);
-			}
-
-			footer {
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				gap: 8px;
-				padding: 40px 24px;
-				border-top: 1px solid var(--line);
-				color: var(--muted);
-				font-size: 0.9rem;
-			}
-			footer p {
-				margin: 0;
-			}
-		</style>
-	</body>
-</html>
+		.faq-list {
+			max-width: 720px;
+			margin: 32px auto 0;
+		}
+		details {
+			border: 1px solid var(--border);
+			border-radius: 14px;
+			background: var(--surface);
+			padding: 4px 20px;
+			margin-bottom: 12px;
+			transition: border-color 0.15s;
+		}
+		details[open] {
+			border-color: var(--green);
+		}
+		summary {
+			cursor: pointer;
+			font-weight: 650;
+			padding: 14px 0;
+		}
+		summary:hover {
+			color: var(--green-hover);
+		}
+		details p {
+			margin: 0 0 18px;
+			color: var(--muted);
+		}
+		details a {
+			color: var(--green-hover);
+		}
+	</style>
+</Base>

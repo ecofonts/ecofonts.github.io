@@ -1,0 +1,344 @@
+---
+/**
+ * Shared page shell: design tokens (light/dark), sticky nav with theme
+ * toggle, footer with GitHub link. Theme is resolved before first paint by
+ * an inline script (localStorage "ecofonts-theme", falling back to the
+ * system preference) and toggled via the button at the right of the nav.
+ */
+interface Props {
+	title: string;
+	description: string;
+}
+const { title, description } = Astro.props;
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="description" content={description} />
+		<title>{title}</title>
+		<script is:inline>
+			(() => {
+				let theme = null;
+				try {
+					theme = localStorage.getItem("ecofonts-theme");
+				} catch {}
+				if (theme !== "light" && theme !== "dark") {
+					theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+				}
+				document.documentElement.dataset.theme = theme;
+			})();
+		</script>
+	</head>
+	<body>
+		<nav>
+			<a class="brand" href="/">
+				<img src="/favicon.svg" alt="Ecofonts logo" width="34" height="34" />
+				<span>Ecofonts</span>
+			</a>
+			<div class="nav-actions">
+				<slot name="nav-actions" />
+				<button id="theme-toggle" type="button" aria-label="Switch between light and dark theme">
+					<svg
+						class="icon-moon"
+						width="18"
+						height="18"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+					</svg>
+					<svg
+						class="icon-sun"
+						width="18"
+						height="18"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<circle cx="12" cy="12" r="5"></circle>
+						<line x1="12" y1="1" x2="12" y2="3"></line>
+						<line x1="12" y1="21" x2="12" y2="23"></line>
+						<line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+						<line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+						<line x1="1" y1="12" x2="3" y2="12"></line>
+						<line x1="21" y1="12" x2="23" y2="12"></line>
+						<line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+						<line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+					</svg>
+				</button>
+			</div>
+		</nav>
+
+		<slot />
+
+		<footer>
+			<div class="footer-inner">
+				<a class="brand" href="/">
+					<img src="/favicon.svg" alt="" width="26" height="26" />
+					<span>Ecofonts</span>
+				</a>
+				<p>
+					PDFs and fonts that print lighter. Runs entirely in your browser — your files never
+					leave your machine.
+				</p>
+				<a
+					class="github-link"
+					href="https://github.com/ecofonts/ecofonts.github.io"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+						<path
+							d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+						></path>
+					</svg>
+					GitHub
+				</a>
+			</div>
+		</footer>
+
+		<script>
+			const toggle = document.getElementById("theme-toggle");
+			toggle?.addEventListener("click", () => {
+				const root = document.documentElement;
+				const next = root.dataset.theme === "dark" ? "light" : "dark";
+				root.dataset.theme = next;
+				try {
+					localStorage.setItem("ecofonts-theme", next);
+				} catch {}
+			});
+		</script>
+
+		<style is:global>
+			:root {
+				--green: #01bf63;
+				--green-bright: #00d97a;
+				--green-hover: #019a50;
+				--bg: #fafcfb;
+				--bg-soft: #f1f7f4;
+				--surface: #ffffff;
+				--border: #e2ebe6;
+				--ink: #0e1c16;
+				--muted: #5a6b62;
+				--tint: rgba(1, 191, 99, 0.08);
+				--tint-strong: rgba(1, 191, 99, 0.16);
+				--glow: rgba(1, 191, 99, 0.22);
+				--shadow: 0 10px 32px rgba(2, 60, 33, 0.1);
+				--code-bg: rgba(1, 191, 99, 0.1);
+				--error-bg: #fdecef;
+				--error-ink: #9f1e35;
+				--error-border: #f5c8d0;
+				--warn-bg: #fff7e0;
+				--warn-ink: #7a5d00;
+				--warn-border: #eee0af;
+			}
+			:root[data-theme="dark"] {
+				--green-hover: #0ce27f;
+				--bg: #0a100d;
+				--bg-soft: #0d1511;
+				--surface: #111a14;
+				--border: #213028;
+				--ink: #e9f4ee;
+				--muted: #8fa398;
+				--tint: rgba(1, 191, 99, 0.1);
+				--tint-strong: rgba(1, 191, 99, 0.2);
+				--glow: rgba(1, 191, 99, 0.28);
+				--shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+				--code-bg: rgba(1, 191, 99, 0.16);
+				--error-bg: #38141f;
+				--error-ink: #ff9fb0;
+				--error-border: #5c2231;
+				--warn-bg: #302809;
+				--warn-ink: #e8c766;
+				--warn-border: #55461d;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+			html {
+				scroll-behavior: smooth;
+			}
+			body {
+				margin: 0;
+				font-family:
+					system-ui,
+					-apple-system,
+					"Segoe UI",
+					sans-serif;
+				background: var(--bg);
+				color: var(--ink);
+				line-height: 1.65;
+				transition:
+					background-color 0.25s,
+					color 0.25s;
+			}
+			code {
+				background: var(--code-bg);
+				padding: 2px 7px;
+				border-radius: 7px;
+				font-size: 0.92em;
+			}
+			::selection {
+				background: var(--tint-strong);
+			}
+
+			nav {
+				position: sticky;
+				top: 0;
+				z-index: 20;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 16px;
+				max-width: 1080px;
+				margin: 0 auto;
+				padding: 14px 24px;
+				backdrop-filter: blur(14px);
+				-webkit-backdrop-filter: blur(14px);
+			}
+			body::before {
+				/* full-width backdrop strip behind the sticky nav */
+				content: "";
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				height: 64px;
+				z-index: 19;
+				background: color-mix(in srgb, var(--bg) 82%, transparent);
+				backdrop-filter: blur(14px);
+				-webkit-backdrop-filter: blur(14px);
+				border-bottom: 1px solid var(--border);
+				pointer-events: none;
+			}
+			.nav-actions {
+				display: flex;
+				align-items: center;
+				gap: 14px;
+			}
+			.brand {
+				display: inline-flex;
+				align-items: center;
+				gap: 10px;
+				text-decoration: none;
+				color: var(--ink);
+				font-weight: 800;
+				font-size: 1.2rem;
+				letter-spacing: -0.02em;
+			}
+			.nav-link {
+				color: var(--muted);
+				text-decoration: none;
+				font-weight: 600;
+			}
+			.nav-link:hover {
+				color: var(--green-hover);
+			}
+			.btn {
+				display: inline-block;
+				background: linear-gradient(135deg, var(--green), var(--green-bright));
+				color: #04160c;
+				text-decoration: none;
+				font-weight: 700;
+				padding: 10px 22px;
+				border-radius: 999px;
+				border: none;
+				font-size: 0.98rem;
+				font-family: inherit;
+				cursor: pointer;
+				transition:
+					transform 0.15s,
+					box-shadow 0.15s,
+					filter 0.15s;
+				box-shadow: 0 6px 18px var(--glow);
+			}
+			.btn:hover {
+				transform: translateY(-1px);
+				filter: brightness(1.05);
+			}
+			#theme-toggle {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				width: 40px;
+				height: 40px;
+				border-radius: 50%;
+				border: 1px solid var(--border);
+				background: var(--surface);
+				color: var(--ink);
+				cursor: pointer;
+				transition:
+					border-color 0.15s,
+					transform 0.15s;
+			}
+			#theme-toggle:hover {
+				border-color: var(--green);
+				transform: rotate(15deg);
+			}
+			:root[data-theme="dark"] #theme-toggle .icon-moon,
+			:root:not([data-theme="dark"]) #theme-toggle .icon-sun {
+				display: none;
+			}
+
+			footer {
+				border-top: 1px solid var(--border);
+				background: var(--bg-soft);
+				margin-top: 0;
+			}
+			.footer-inner {
+				max-width: 1080px;
+				margin: 0 auto;
+				padding: 40px 24px;
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 16px 28px;
+			}
+			.footer-inner p {
+				margin: 0;
+				color: var(--muted);
+				font-size: 0.92rem;
+				flex: 1;
+				min-width: 240px;
+			}
+			.github-link {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				color: var(--ink);
+				text-decoration: none;
+				font-weight: 600;
+				padding: 8px 16px;
+				border: 1px solid var(--border);
+				border-radius: 999px;
+				background: var(--surface);
+				transition:
+					border-color 0.15s,
+					transform 0.15s;
+			}
+			.github-link:hover {
+				border-color: var(--green);
+				transform: translateY(-1px);
+			}
+
+			:focus-visible {
+				outline: 2px solid var(--green);
+				outline-offset: 2px;
+			}
+		</style>
+	</body>
+</html>

@@ -10,11 +10,22 @@ browser.
 ## Architecture
 
 - **Framework:** Astro (static output) + `@astrojs/react`.
+- **Layout & theming:** both pages use [src/layouts/Base.astro](src/layouts/Base.astro), which owns the
+  design tokens (CSS custom properties with light/dark variants keyed off
+  `html[data-theme]`), the sticky nav (theme toggle at the right), and the
+  footer (GitHub link: https://github.com/ecofonts/ecofonts.github.io). Theme
+  is resolved **before first paint** by an inline script — localStorage key
+  `ecofonts-theme`, falling back to `prefers-color-scheme` — and persisted on
+  toggle. Component/page styles must use the shared tokens (`--green`,
+  `--surface`, `--border`, `--tint`, `--error-*`, `--warn-*`, …) so they
+  adapt to both themes; brand green is `#01bf63`, logo is
+  [public/favicon.svg](public/favicon.svg).
+- **Copy priority:** PDFs lead the messaging everywhere (hero, drop zones,
+  FAQ, accept-attribute order); fonts are secondary. Keep it that way.
 - **Routes:**
   - `/` — [src/pages/index.astro](src/pages/index.astro): landing page (hero + drop zone, how-it-works,
-    features, FAQ). Fully static with one inline script for the drop zone;
-    scoped styles live in the page itself. Brand green is `#01bf63`; the
-    logo is [public/favicon.svg](public/favicon.svg) (used as favicon and nav logo on both pages).
+    features, Google Fonts import guide, FAQ). Static, with one inline
+    script for the drop zone; page-specific scoped styles live in the page.
   - `/font` — [src/pages/font.astro](src/pages/font.astro): mounts the optimizer React component with `client:load`.
 - **Landing → optimizer file handoff:** dropping a font on `/` stashes the
   `File` in IndexedDB ([src/lib/handoff.ts](src/lib/handoff.ts)) and navigates to `/font`, which
