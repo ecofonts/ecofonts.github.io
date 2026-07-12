@@ -57,9 +57,12 @@ browser.
   on `EcoResult`) are loaded as **real web fonts via the FontFace API** and
   rendered as plain HTML text — native quality, wrapping and multiline for
   free; do not reintroduce canvas rendering (blurry, and opentype.js text
-  layout throws on GSUB lookups it doesn't support). PDFs get a preview when
-  an embedded font is browser-renderable (full embeds yes, cmap-less
-  subsets no).
+  layout throws on GSUB lookups it doesn't support). PDFs never show a font
+  preview (the pipeline returns null preview data for them); instead each
+  PDF result row gets a **Print** button that prints the optimized document
+  without downloading it — the blob is loaded into an invisible iframe and
+  `contentWindow.print()` opens the dialog (the frame must stay rendered,
+  not `display:none`, and outlive the dialog).
   Files are processed sequentially; one failure never aborts the batch.
   Styled by [src/components/FontOptimizer.css](src/components/FontOptimizer.css) using the shared design
   tokens. Loads the worker client with a dynamic `import()` on first use —

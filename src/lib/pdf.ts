@@ -15,7 +15,6 @@ import {
     decodePDFRawStream,
 } from "pdf-lib";
 import { ecoProcessCff, ecoProcessSfnt } from "./cff";
-import { parseFont } from "./ecofont";
 import { ecoProcessTrueType } from "./glyf";
 import { ecoProcessType1 } from "./type1";
 import type { ProgressCallback } from "./pipeline";
@@ -24,10 +23,6 @@ export interface PdfEcoOutput {
     data: ArrayBuffer;
     processedFonts: string[];
     warnings: string[];
-    /** Before/after bytes of the first embedded font a browser can render
-     *  as a web font (typically full, non-subset TrueType embeds). */
-    previewOriginalData: ArrayBuffer | null;
-    previewProcessedData: ArrayBuffer | null;
 }
 
 type FontKind = "truetype" | "fontfile3" | "type1";
@@ -76,8 +71,6 @@ export async function processPdf(
 
     const processedFonts: string[] = [];
     const warnings: string[] = [];
-    let previewOriginalData: ArrayBuffer | null = null;
-    let previewProcessedData: ArrayBuffer | null = null;
 
     for (let i = 0; i < targets.length; i++) {
         const { ref, name, kind } = targets[i];
@@ -136,14 +129,6 @@ export async function processPdf(
             }
             doc.context.assign(ref, newStream);
             processedFonts.push(name);
-            // Keep the first before/after byte pair that is renderable as a
-            // web font — validated with an opentype.js parse, which (like
-            // browsers) needs a cmap that subset fonts usually lack.
-            if (!previewProcessedData && isRenderable(fontBytes) && isRenderable(newBytes)) {
-                const originalCopy = new Uint8Array(fontBytes);
-                previewOriginalData = originalCopy.buffer as ArrayBuffer;
-                previewProcessedData = buffer;
-            }
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             warnings.push(`${name}: ${message} — kept as-is`);
@@ -163,19 +148,7 @@ export async function processPdf(
         data: out.buffer,
         processedFonts,
         warnings,
-        previewOriginalData,
-        previewProcessedData,
     };
-}
-
-function isRenderable(bytes: Uint8Array): boolean {
-    try {
-        const copy = new Uint8Array(bytes);
-        parseFont(copy.buffer as ArrayBuffer);
-        return true;
-    } catch {
-        return false;
-    }
 }
 
 function descriptorFontName(descriptor: PDFDict): string {

@@ -215,6 +215,21 @@
     font-size: 0.9rem;
     flex: none;
 }
+.eco-btn.secondary {
+    background: var(--tint);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    box-shadow: none;
+}
+.eco-btn.secondary:hover:not(:disabled) {
+    background: var(--tint-strong);
+}
+.eco-file-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+}
 .eco-warnings {
     list-style: none;
     margin: 14px 0 0;

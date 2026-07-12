@@ -38,6 +38,10 @@ export default function FontOptimizer() {
     const [previewText, setPreviewText] = useState(DEFAULT_PREVIEW_TEXT);
     const [previewReady, setPreviewReady] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const printFrameRef = useRef<HTMLIFrameElement | null>(null);
+
+    // Drop the print iframe (and its blob URL) when the component unmounts.
+    useEffect(() => removePrintFrame, []);
 
     const preview =
         results.find((result) => result.previewProcessedData && result.previewOriginalData) ??
@@ -177,6 +181,40 @@ export default function FontOptimizer() {
             // Give the browser a beat between programmatic downloads.
             await new Promise((resolve) => setTimeout(resolve, 300));
         }
+    }
+
+    function removePrintFrame() {
+        const frame = printFrameRef.current;
+        if (!frame) return;
+        URL.revokeObjectURL(frame.src);
+        frame.remove();
+        printFrameRef.current = null;
+    }
+
+    // Print the optimized PDF without downloading it: load the blob into an
+    // invisible iframe and open the print dialog from the viewer inside it.
+    // The frame must be rendered (display:none frames don't print in
+    // Firefox) and must outlive the dialog, so it is only removed on the
+    // next print or on unmount.
+    function printResult(result: EcoResult) {
+        removePrintFrame();
+        const url = URL.createObjectURL(new Blob([result.data], { type: result.mimeType }));
+        const frame = document.createElement("iframe");
+        frame.style.position = "fixed";
+        frame.style.right = "0";
+        frame.style.bottom = "0";
+        frame.style.width = "0";
+        frame.style.height = "0";
+        frame.style.border = "0";
+        frame.setAttribute("aria-hidden", "true");
+        frame.tabIndex = -1;
+        frame.src = url;
+        frame.onload = () => {
+            frame.contentWindow?.focus();
+            frame.contentWindow?.print();
+        };
+        document.body.appendChild(frame);
+        printFrameRef.current = frame;
     }
 
     const totalKb = Math.max(1, Math.round(files.reduce((sum, f) => sum + f.size, 0) / 1024));
@@ -347,13 +385,24 @@ export default function FontOptimizer() {
                                         </ul>
                                     )}
                                 </div>
-                                <button
-                                    type="button"
-                                    className="eco-btn small"
-                                    onClick={() => downloadResult(result)}
-                                >
-                                    Download
-                                </button>
+                                <div className="eco-file-actions">
+                                    {result.mimeType === "application/pdf" && (
+                                        <button
+                                            type="button"
+                                            className="eco-btn small secondary"
+                                            onClick={() => printResult(result)}
+                                        >
+                                            Print
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="eco-btn small"
+                                        onClick={() => downloadResult(result)}
+                                    >
+                                        Download
+                                    </button>
+                                </div>
                             </li>
                         ))}
                     </ul>

@@ -35,8 +35,8 @@ export interface EcoResult {
     /**
      * Raw font bytes of the first processed font, before/after, for the
      * on-page preview (loaded as real web fonts via the FontFace API).
-     * Null when no browser-renderable font is available (e.g. PDFs whose
-     * embedded fonts are cmap-less subsets or non-sfnt formats).
+     * Only produced by the .ttf/.zip paths — always null for PDFs, which
+     * show no font preview (the UI offers Print/Download of the document).
      */
     previewOriginalData: ArrayBuffer | null;
     previewProcessedData: ArrayBuffer | null;
@@ -169,10 +169,8 @@ async function processPdfUpload(
         data: result.data,
         processedFonts: result.processedFonts,
         warnings: result.warnings,
-        // Present when at least one embedded font has the tables browsers
-        // need to render text (subset fonts usually don't — no cmap).
-        previewOriginalData: result.previewOriginalData,
-        previewProcessedData: result.previewProcessedData,
+        previewOriginalData: null,
+        previewProcessedData: null,
     };
 }
 
