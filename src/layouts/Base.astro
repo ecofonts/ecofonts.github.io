@@ -212,6 +212,9 @@ const socialImage = new URL("/og.png", site);
 			}
 			html {
 				scroll-behavior: smooth;
+				/* Reserve the scrollbar gutter even on pages that don't scroll,
+				   so centered content doesn't shift between / and /font. */
+				scrollbar-gutter: stable;
 			}
 			body {
 				margin: 0;
@@ -258,7 +261,10 @@ const socialImage = new URL("/og.png", site);
 				gap: 16px;
 				max-width: 1080px;
 				margin: 0 auto;
-				padding: 14px 24px;
+				/* Fixed height so per-page nav-actions content (button vs text
+				   link) can't change the nav's size between pages. */
+				height: 68px;
+				padding: 0 24px;
 				backdrop-filter: blur(14px);
 				-webkit-backdrop-filter: blur(14px);
 			}
@@ -269,7 +275,7 @@ const socialImage = new URL("/og.png", site);
 				top: 0;
 				left: 0;
 				right: 0;
-				height: 64px;
+				height: 68px;
 				z-index: 19;
 				background: color-mix(in srgb, var(--bg) 82%, transparent);
 				backdrop-filter: blur(14px);
