@@ -202,7 +202,7 @@
 			const error = document.getElementById("drop-error");
 
 			async function send(file: File | undefined): Promise<void> {
-				if (!file || !/\.(ttf|zip)$/i.test(file.name)) {
+				if (!file || !/\.(ttf|zip|pdf)$/i.test(file.name)) {
 					error?.removeAttribute("hidden");
 					return;
 				}
