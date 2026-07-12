@@ -39,12 +39,19 @@ browser.
 ### Source layout
 
 - [src/components/FontOptimizer.tsx](src/components/FontOptimizer.tsx) — UI: drag-and-drop upload zone
-  (`.ttf`/`.zip`), "Eco Intensity" slider (1–20%), progress display,
-  before/after canvas preview, blob download. Styled by
-  [src/components/FontOptimizer.css](src/components/FontOptimizer.css), which shares the landing page's
-  design tokens (brand green `#01bf63`). Loads the pipeline with a dynamic
-  `import()` on first use — this keeps the heavy libraries out of the
-  initial bundle **and out of Astro's prerender pass** (see gotchas).
+  accepting **multiple files** (`.pdf`/`.zip`/`.ttf`), "Eco Intensity"
+  slider (1–20%), batch + per-glyph progress, per-file download buttons plus
+  "Download all", before/after canvas preview, per-file failure reporting.
+  Files are processed sequentially; one failure never aborts the batch.
+  Styled by [src/components/FontOptimizer.css](src/components/FontOptimizer.css) using the shared design
+  tokens. Loads the pipeline with a dynamic `import()` on first use — this
+  keeps the heavy libraries out of the initial bundle **and out of Astro's
+  prerender pass** (see gotchas).
+- [src/lib/limits.ts](src/lib/limits.ts) — single source of truth for selection validation,
+  used by both the landing drop zone and the optimizer (they once drifted;
+  don't duplicate the rules again). Per-selection maximums: 20 PDFs, 100
+  `.ttf`, 5 `.zip`. **The maximums must not appear in regular UI copy** —
+  only in the rejection message when a selection exceeds them.
 - [src/lib/pipeline.ts](src/lib/pipeline.ts) — file-level routing: single `.ttf` vs `.zip`
   traversal with JSZip vs `.pdf`. Rewrites zip entries in place so the
   archive keeps its exact folder structure (e.g. Google Fonts `static/`

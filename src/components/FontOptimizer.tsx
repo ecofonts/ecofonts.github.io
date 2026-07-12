@@ -1,37 +1,42 @@
 import { useEffect, useRef, useState } from "react";
 import type { Font } from "opentype.js";
 import type { EcoResult, ProgressInfo } from "../lib/pipeline";
+import { validateSelection } from "../lib/limits";
 import "./FontOptimizer.css";
 
 const PREVIEW_TEXT = "Handgloves 0123";
-const ACCEPTED_RE = /\.(ttf|zip|pdf)$/i;
 
 export default function FontOptimizer() {
-    const [file, setFile] = useState<File | null>(null);
+    const [files, setFiles] = useState<File[]>([]);
     const [intensity, setIntensity] = useState(10);
     const [busy, setBusy] = useState(false);
     const [dragOver, setDragOver] = useState(false);
+    const [batch, setBatch] = useState<{ index: number; total: number } | null>(null);
     const [progress, setProgress] = useState<ProgressInfo | null>(null);
-    const [result, setResult] = useState<EcoResult | null>(null);
+    const [results, setResults] = useState<EcoResult[]>([]);
+    const [failures, setFailures] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const originalCanvasRef = useRef<HTMLCanvasElement>(null);
     const ecoCanvasRef = useRef<HTMLCanvasElement>(null);
 
-    useEffect(() => {
-        drawPreview(result?.previewOriginal ?? null, originalCanvasRef.current);
-        drawPreview(result?.previewProcessed ?? null, ecoCanvasRef.current);
-    }, [result]);
+    const preview = results.find((result) => result.previewProcessed) ?? null;
 
-    // Pick up a file dropped on the landing page (handed over via IndexedDB)
-    // and start processing it right away.
+    useEffect(() => {
+        drawPreview(preview?.previewOriginal ?? null, originalCanvasRef.current);
+        drawPreview(preview?.previewProcessed ?? null, ecoCanvasRef.current);
+    }, [preview]);
+
+    // Pick up files dropped on the landing page (handed over via IndexedDB)
+    // and start processing them right away.
     useEffect(() => {
         let cancelled = false;
         void (async () => {
-            const { takeFile } = await import("../lib/handoff");
-            const handed = await takeFile();
-            if (handed && !cancelled) {
-                setFile(handed);
+            const { takeFiles } = await import("../lib/handoff");
+            const handed = await takeFiles();
+            if (handed.length > 0 && !cancelled) {
+                setFiles(handed);
                 void runProcess(handed);
             }
         })();
@@ -40,38 +45,68 @@ export default function FontOptimizer() {
         };
     }, []);
 
-    function acceptFile(candidate: File | undefined) {
+    function acceptFiles(list: FileList | null | undefined) {
         if (busy) return;
-        if (!candidate || !ACCEPTED_RE.test(candidate.name)) {
-            setError("Please choose a .pdf document, a .zip archive, or a .ttf font.");
+        const candidates = Array.from(list ?? []);
+        if (candidates.length === 0) return;
+        const { accepted, skipped, error: validationError } = validateSelection(candidates);
+        setResults([]);
+        setFailures([]);
+        setProgress(null);
+        if (validationError) {
+            setFiles([]);
+            setNotice(null);
+            setError(validationError);
             return;
         }
-        setFile(candidate);
-        setResult(null);
+        setFiles(accepted);
         setError(null);
-        setProgress(null);
+        setNotice(
+            skipped.length > 0
+                ? `Skipped ${skipped.length} unsupported file${skipped.length === 1 ? "" : "s"}: ${skipped
+                      .slice(0, 3)
+                      .join(", ")}${skipped.length > 3 ? "…" : ""}`
+                : null,
+        );
     }
 
-    async function runProcess(target: File) {
+    async function runProcess(targets: File[]) {
+        if (targets.length === 0) return;
         setBusy(true);
         setError(null);
-        setResult(null);
+        setResults([]);
+        setFailures([]);
         setProgress(null);
+        const collected: EcoResult[] = [];
+        const failed: string[] = [];
         try {
-            // Loaded on demand: keeps opentype.js/clipper/jszip out of the
+            // Loaded on demand: keeps the processing libraries out of the
             // initial bundle and out of the server-side prerender pass.
             const { processUpload } = await import("../lib/pipeline");
-            const data = await target.arrayBuffer();
-            setResult(await processUpload(target.name, data, intensity, setProgress));
+            for (let i = 0; i < targets.length; i++) {
+                const target = targets[i];
+                setBatch({ index: i + 1, total: targets.length });
+                setProgress(null);
+                try {
+                    const data = await target.arrayBuffer();
+                    collected.push(await processUpload(target.name, data, intensity, setProgress));
+                } catch (err) {
+                    failed.push(
+                        `${target.name}: ${err instanceof Error ? err.message : String(err)}`,
+                    );
+                }
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err));
         } finally {
+            setResults(collected);
+            setFailures(failed);
+            setBatch(null);
             setBusy(false);
         }
     }
 
-    function handleDownload() {
-        if (!result) return;
+    function downloadResult(result: EcoResult) {
         const blob = new Blob([result.data], { type: result.mimeType });
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
@@ -83,6 +118,15 @@ export default function FontOptimizer() {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
+    async function downloadAll() {
+        for (const result of results) {
+            downloadResult(result);
+            // Give the browser a beat between programmatic downloads.
+            await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+    }
+
+    const totalKb = Math.max(1, Math.round(files.reduce((sum, f) => sum + f.size, 0) / 1024));
     const dropzoneClass = [
         "eco-dropzone",
         dragOver ? "dragover" : "",
@@ -93,19 +137,19 @@ export default function FontOptimizer() {
 
     return (
         <main className="eco-main">
-            <h1>Optimize your PDF or font</h1>
+            <h1>Optimize your PDFs or fonts</h1>
             <p className="eco-lede">
-                Upload a <code>.pdf</code> document and every font embedded in it gets tiny
-                ink-saving holes — or optimize a <code>.zip</code> font family or a single{" "}
-                <code>.ttf</code> directly. Everything runs in your browser — files never leave
-                your machine.
+                Upload <code>.pdf</code> documents and every font embedded in them gets tiny
+                ink-saving holes — or optimize <code>.zip</code> font families and{" "}
+                <code>.ttf</code> fonts directly. Everything runs in your browser — files never
+                leave your machine.
             </p>
 
             <div
                 className={dropzoneClass}
                 role="button"
                 tabIndex={0}
-                aria-label="Drop a .pdf, .zip or .ttf file here, or press Enter to browse"
+                aria-label="Drop .pdf, .zip or .ttf files here, or press Enter to browse"
                 onClick={() => !busy && inputRef.current?.click()}
                 onKeyDown={(event) => {
                     if (!busy && (event.key === "Enter" || event.key === " ")) {
@@ -121,26 +165,34 @@ export default function FontOptimizer() {
                 onDrop={(event) => {
                     event.preventDefault();
                     setDragOver(false);
-                    acceptFile(event.dataTransfer.files?.[0]);
+                    acceptFiles(event.dataTransfer.files);
                 }}
             >
                 <p>
-                    <strong>{file ? file.name : "Drop your PDF or font here"}</strong>
+                    <strong>
+                        {files.length === 0
+                            ? "Drop your PDFs or fonts here"
+                            : files.length === 1
+                              ? files[0].name
+                              : `${files.length} files selected`}
+                    </strong>
                 </p>
                 <p className="eco-hint">
-                    {file
-                        ? `${Math.max(1, Math.round(file.size / 1024))} KB — click to change`
-                        : ".pdf, .zip or .ttf — or click to browse"}
+                    {files.length > 0
+                        ? `${totalKb} KB — click to change`
+                        : ".pdf, .zip or .ttf — multiple files welcome"}
                 </p>
                 <input
                     ref={inputRef}
                     type="file"
                     accept=".pdf,.zip,.ttf"
+                    multiple
                     hidden
-                    onChange={(event) => acceptFile(event.target.files?.[0])}
+                    onChange={(event) => acceptFiles(event.target.files)}
                     disabled={busy}
                 />
             </div>
+            {notice && <p className="eco-notice">{notice}</p>}
 
             <div className="eco-controls">
                 <div className="eco-slider-group">
@@ -162,20 +214,37 @@ export default function FontOptimizer() {
                 <button
                     type="button"
                     className="eco-btn"
-                    onClick={() => file && !busy && runProcess(file)}
-                    disabled={!file || busy}
+                    onClick={() => !busy && runProcess(files)}
+                    disabled={files.length === 0 || busy}
                 >
-                    {busy ? "Processing…" : "Optimize font"}
+                    {busy
+                        ? "Processing…"
+                        : files.length > 1
+                          ? `Optimize ${files.length} files`
+                          : "Optimize"}
                 </button>
             </div>
 
-            {busy && progress && (
+            {busy && (
                 <div className="eco-progress" aria-live="polite">
-                    <p>
-                        Processing {progress.fileName} ({progress.fileIndex}/{progress.fileCount})
-                        — glyph {progress.glyphsDone}/{progress.glyphsTotal}
-                    </p>
-                    <progress value={progress.glyphsDone} max={progress.glyphsTotal || 1} />
+                    {batch && batch.total > 1 && (
+                        <p>
+                            <strong>
+                                File {batch.index} of {batch.total}
+                            </strong>
+                        </p>
+                    )}
+                    {progress && (
+                        <p>
+                            Processing {progress.fileName} ({progress.fileIndex}/
+                            {progress.fileCount}) — glyph {progress.glyphsDone}/
+                            {progress.glyphsTotal}
+                        </p>
+                    )}
+                    <progress
+                        value={progress?.glyphsDone ?? 0}
+                        max={progress?.glyphsTotal || 1}
+                    />
                 </div>
             )}
 
@@ -185,37 +254,65 @@ export default function FontOptimizer() {
                 </div>
             )}
 
-            {result && (
+            {failures.length > 0 && (
+                <div className="eco-error" role="alert">
+                    <p>
+                        {failures.length === 1
+                            ? "One file could not be processed:"
+                            : `${failures.length} files could not be processed:`}
+                    </p>
+                    <ul>
+                        {failures.map((failure) => (
+                            <li key={failure}>{failure}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {results.length > 0 && (
                 <section className="eco-result">
                     <h2>
                         <span className="eco-check" aria-hidden="true">
                             ✓
                         </span>
-                        Your ecofont is ready
+                        Your {results.length === 1 ? "file is" : "files are"} ready
                     </h2>
-                    <p>
-                        Processed {result.processedFonts.length} font
-                        {result.processedFonts.length === 1 ? "" : "s"}:
-                    </p>
-                    <ul className="eco-list">
-                        {result.processedFonts.map((name) => (
-                            <li key={name}>{name}</li>
+                    <ul className="eco-results-list">
+                        {results.map((result, i) => (
+                            <li key={`${result.fileName}-${i}`} className="eco-file-row">
+                                <div className="eco-file-info">
+                                    <strong>{result.fileName}</strong>
+                                    <span className="eco-file-meta">
+                                        {result.processedFonts.length} font
+                                        {result.processedFonts.length === 1 ? "" : "s"} optimized
+                                    </span>
+                                    {result.warnings.length > 0 && (
+                                        <ul className="eco-warnings">
+                                            {result.warnings.map((warning) => (
+                                                <li key={warning}>{warning}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    className="eco-btn small"
+                                    onClick={() => downloadResult(result)}
+                                >
+                                    Download
+                                </button>
+                            </li>
                         ))}
                     </ul>
-                    {result.warnings.length > 0 && (
-                        <ul className="eco-warnings">
-                            {result.warnings.map((warning) => (
-                                <li key={warning}>{warning}</li>
-                            ))}
-                        </ul>
+                    {results.length > 1 && (
+                        <div className="eco-download">
+                            <button type="button" className="eco-btn" onClick={() => void downloadAll()}>
+                                Download all
+                            </button>
+                        </div>
                     )}
-                    <div className="eco-download">
-                        <button type="button" className="eco-btn" onClick={handleDownload}>
-                            Download {result.fileName}
-                        </button>
-                    </div>
 
-                    {result.previewProcessed && (
+                    {preview && (
                         <div className="eco-previews">
                             <figure>
                                 <figcaption>Original</figcaption>

@@ -23,16 +23,14 @@ import Base from "../layouts/Base.astro";
 			id="dropzone"
 			role="button"
 			tabindex="0"
-			aria-label="Drop a .pdf, .zip or .ttf file here, or press Enter to browse"
+			aria-label="Drop .pdf, .zip or .ttf files here, or press Enter to browse"
 		>
 			<img src="/favicon.svg" alt="" width="52" height="52" />
-			<p><strong>Drop your PDF here</strong></p>
-			<p class="hint">.pdf, .zip or .ttf — or click to browse</p>
-			<input id="drop-input" type="file" accept=".pdf,.zip,.ttf" hidden />
+			<p><strong>Drop your PDFs here</strong></p>
+			<p class="hint">.pdf, .zip or .ttf — multiple files welcome</p>
+			<input id="drop-input" type="file" accept=".pdf,.zip,.ttf" multiple hidden />
 		</div>
-		<p id="drop-error" role="alert" hidden>
-			Please choose a .pdf document, a .zip archive, or a .ttf font.
-		</p>
+		<p id="drop-error" role="alert" hidden></p>
 
 		<ul class="stats">
 			<li>Up to <strong>20% less ink</strong></li>
@@ -216,22 +214,30 @@ import Base from "../layouts/Base.astro";
 	</main>
 
 	<script>
-		import { stashFile } from "../lib/handoff";
+		import { stashFiles } from "../lib/handoff";
+		import { validateSelection } from "../lib/limits";
 
 		const zone = document.getElementById("dropzone");
 		const input = document.getElementById("drop-input") as HTMLInputElement | null;
 		const error = document.getElementById("drop-error");
 
-		async function send(file: File | undefined): Promise<void> {
-			if (!file || !/\.(ttf|zip|pdf)$/i.test(file.name)) {
-				error?.removeAttribute("hidden");
+		async function send(list: FileList | null | undefined): Promise<void> {
+			const candidates = Array.from(list ?? []);
+			if (candidates.length === 0) return;
+			const { accepted, error: validationError } = validateSelection(candidates);
+			if (validationError || accepted.length === 0) {
+				if (error) {
+					error.textContent =
+						validationError ?? "Please choose .pdf documents, .zip archives, or .ttf fonts.";
+					error.removeAttribute("hidden");
+				}
 				return;
 			}
 			error?.setAttribute("hidden", "");
 			try {
-				await stashFile(file);
+				await stashFiles(accepted);
 			} catch {
-				// If storage fails the user can simply re-pick the file on /font.
+				// If storage fails the user can simply re-pick the files on /font.
 			}
 			window.location.href = "/font";
 		}
@@ -244,7 +250,7 @@ import Base from "../layouts/Base.astro";
 					input.click();
 				}
 			});
-			input.addEventListener("change", () => void send(input.files?.[0]));
+			input.addEventListener("change", () => void send(input.files));
 			zone.addEventListener("dragover", (event) => {
 				event.preventDefault();
 				zone.classList.add("dragover");
@@ -253,7 +259,7 @@ import Base from "../layouts/Base.astro";
 			zone.addEventListener("drop", (event) => {
 				event.preventDefault();
 				zone.classList.remove("dragover");
-				void send(event.dataTransfer?.files?.[0]);
+				void send(event.dataTransfer?.files);
 			});
 		}
 	</script>
