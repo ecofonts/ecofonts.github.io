@@ -79,11 +79,28 @@ browser.
   head/maxp patches). Untouched glyphs keep their original bytes including
   hinting; glyph IDs and widths are preserved exactly, which the PDF's
   CID-to-GID mapping depends on.
+- [src/lib/cff.ts](src/lib/cff.ts) — CFF "charstring surgeon" for PDF-embedded CFF fonts
+  (`FontFile3`, subtypes Type1C/CIDFontType0C/OpenType): interprets Type 2
+  charstrings (subrs, hintmask, flex) into contours, punches holes, re-emits
+  charstrings, and rebuilds the CFF container while copying
+  charset/encoding/FDSelect/subrs byte-for-byte, so glyph IDs, CID mappings
+  and text encoding survive. Glyphs using unsupported features (seac,
+  arithmetic ops) keep their original bytes. `ecoProcessSfnt` handles full
+  OpenType wrappers by swapping the CFF table (or delegating to the glyf
+  surgeon for glyf-flavored ones).
+- [src/lib/type1.ts](src/lib/type1.ts) — Type 1 "charstring surgeon" for legacy PostScript
+  fonts (`FontFile`): splits clear/eexec/trailer segments, decrypts,
+  interprets Type 1 charstrings (subrs, OtherSubrs flex + hint replacement),
+  punches holes, splices only the charstring bytes back into the PostScript
+  source, and re-encrypts. hsbw/sbw sidebearings are preserved verbatim;
+  glyphs using seac or unknown OtherSubrs keep their original bytes.
 - [src/lib/pdf.ts](src/lib/pdf.ts) — PDF plumbing via pdf-lib (dynamically imported): finds
-  every unique `FontFile2` stream referenced by a font descriptor, decodes it
-  (`decodePDFRawStream`), runs the glyf surgeon, re-embeds via
-  `context.flateStream` + `Length1`, and saves. Nothing else in the document
-  is modified.
+  every unique `FontFile2`/`FontFile3`/`FontFile` stream referenced by a
+  font descriptor, decodes it (`decodePDFRawStream`), runs the matching
+  surgeon (sniffing bytes, not trusting the declared subtype), re-embeds via
+  `context.flateStream` (+ `Length1` for TrueType, `Length1/2/3` for Type 1,
+  preserved `Subtype` for FontFile3), and saves. Nothing else in the
+  document is modified.
 - [src/lib/clipper-lib.d.ts](src/lib/clipper-lib.d.ts) — hand-written types for the parts of
   `clipper-lib` we use (the package ships none).
 
@@ -127,12 +144,13 @@ area the wall protection preserves). Tuning constants live at the top of
   process fine.
 - Output files grow (curves become line segments); that is inherent to the
   approach.
-- **PDFs:** only `FontFile2` (TrueType) embedded fonts are rewritten —
-  `FontFile` (Type 1) and `FontFile3` (CFF) fonts are kept as-is with a
-  warning. Text drawn with non-embedded viewer fonts cannot be optimized.
-  Encrypted PDFs are rejected by pdf-lib at load time. The `.ttf`/`.zip`
-  paths still go through opentype.js (CFF output); only the PDF path uses
-  the glyf surgeon, which outputs true TrueType.
+- **PDFs:** all embedded font formats are rewritten — `FontFile2`
+  (TrueType), `FontFile3` (CFF/OpenType), and `FontFile` (legacy Type 1).
+  Text drawn with non-embedded viewer fonts cannot be optimized. Per-glyph
+  and per-font failures degrade gracefully (original bytes kept, warning
+  shown). Encrypted PDFs are rejected by pdf-lib at load time. The
+  `.ttf`/`.zip` paths still go through opentype.js (CFF output); the PDF
+  path uses the binary surgeons.
 
 ## Testing
 

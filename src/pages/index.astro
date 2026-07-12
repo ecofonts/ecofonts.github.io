@@ -34,7 +34,7 @@ const faq = [
 	],
 	[
 		"Can I optimize a whole PDF?",
-		"Yes. Drop a .pdf and Ecofonts finds every TrueType font embedded in the document, punches the eco holes into its glyphs, and rebuilds the file. The layout, images, and text stay exactly as they were — the text even remains selectable.",
+		"Yes. Drop a .pdf and Ecofonts finds every embedded font in the document — TrueType, CFF/OpenType, and legacy Type 1 alike — punches the eco holes into its glyphs, and rebuilds the file. The layout, images, and text stay exactly as they were — the text even remains selectable.",
 	],
 	[
 		"Does this work completely on my computer?",
@@ -221,10 +221,9 @@ const faqSchema = {
 					<summary>Can I optimize a whole PDF?</summary>
 					<p>
 						Yes — that's the main event. Drop a <code>.pdf</code> and Ecofonts finds every
-						TrueType font embedded in the document, punches the eco holes into its glyphs, and
-						rebuilds the file. The layout, images, and text stay exactly as they were — the
-						text even remains selectable. Fonts embedded in other formats (Type 1/CFF) are left
-						unchanged, and you'll see a note when that happens.
+						embedded font in the document — TrueType, CFF/OpenType, and legacy Type&nbsp;1
+						alike — punches the eco holes into its glyphs, and rebuilds the file. The layout,
+						images, and text stay exactly as they were — the text even remains selectable.
 					</p>
 				</details>
 				<details>

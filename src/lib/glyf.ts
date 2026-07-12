@@ -29,6 +29,37 @@ interface TableRecord {
     length: number;
 }
 
+function readTableDirectory(bytes: Uint8Array, view: DataView): TableRecord[] {
+    const numTables = view.getUint16(4);
+    const tables: TableRecord[] = [];
+    for (let i = 0; i < numTables; i++) {
+        const p = 12 + i * 16;
+        tables.push({
+            tag: String.fromCharCode(bytes[p], bytes[p + 1], bytes[p + 2], bytes[p + 3]),
+            offset: view.getUint32(p + 8),
+            length: view.getUint32(p + 12),
+        });
+    }
+    return tables;
+}
+
+/** Extract one table's bytes from an sfnt container, or null if absent. */
+export function findSfntTable(bytes: Uint8Array, tag: string): Uint8Array | null {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const table = readTableDirectory(bytes, view).find((t) => t.tag === tag);
+    return table ? bytes.slice(table.offset, table.offset + table.length) : null;
+}
+
+/** Rebuild an sfnt container with one table's contents replaced. */
+export function replaceSfntTable(bytes: Uint8Array, tag: string, data: Uint8Array): ArrayBuffer {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const tables = readTableDirectory(bytes, view);
+    if (!tables.some((t) => t.tag === tag)) {
+        throw new Error(`font has no ${tag} table`);
+    }
+    return assembleSfnt(view.getUint32(0), tables, bytes, new Map([[tag, data]]));
+}
+
 export async function ecoProcessTrueType(
     data: Uint8Array,
     intensity: number,
@@ -46,16 +77,7 @@ export async function ecoProcessTrueType(
         throw new Error("not a TrueType font program");
     }
 
-    const numTables = view.getUint16(4);
-    const tables: TableRecord[] = [];
-    for (let i = 0; i < numTables; i++) {
-        const p = 12 + i * 16;
-        tables.push({
-            tag: String.fromCharCode(bytes[p], bytes[p + 1], bytes[p + 2], bytes[p + 3]),
-            offset: view.getUint32(p + 8),
-            length: view.getUint32(p + 12),
-        });
-    }
+    const tables = readTableDirectory(bytes, view);
     const byTag = new Map(tables.map((t) => [t.tag, t]));
     const head = byTag.get("head");
     const maxp = byTag.get("maxp");

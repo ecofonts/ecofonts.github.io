@@ -1,11 +1,9 @@
 /**
- * PDF pipeline: extracts every embedded TrueType font program (FontFile2
- * stream), runs it through the glyf surgeon, and re-embeds it in place.
- * Nothing else in the document is touched — text, layout, images, metadata
- * and page content streams stay byte-identical in meaning.
- *
- * Fonts embedded in other formats (FontFile = Type 1, FontFile3 = CFF)
- * cannot be rewritten by this tool yet and are kept as-is with a warning.
+ * PDF pipeline: extracts every embedded font program — TrueType (FontFile2),
+ * CFF/OpenType (FontFile3) and legacy Type 1 (FontFile) — runs it through
+ * the matching surgeon, and re-embeds it in place. Nothing else in the
+ * document is touched: text, layout, images, metadata and page content
+ * streams stay byte-identical in meaning.
  */
 import {
     PDFDict,
@@ -16,7 +14,9 @@ import {
     PDFRef,
     decodePDFRawStream,
 } from "pdf-lib";
+import { ecoProcessCff, ecoProcessSfnt } from "./cff";
 import { ecoProcessTrueType } from "./glyf";
+import { ecoProcessType1 } from "./type1";
 import type { ProgressCallback } from "./pipeline";
 
 export interface PdfEcoOutput {
@@ -24,6 +24,8 @@ export interface PdfEcoOutput {
     processedFonts: string[];
     warnings: string[];
 }
+
+type FontKind = "truetype" | "fontfile3" | "type1";
 
 export async function processPdf(
     data: ArrayBuffer,
@@ -38,33 +40,30 @@ export async function processPdf(
         throw new Error(`Could not read the PDF: ${message}`);
     }
 
-    // Collect the unique TrueType font streams referenced by font
-    // descriptors (the same stream may be shared by several descriptors).
-    const targets: { ref: PDFRef; name: string }[] = [];
+    // Collect the unique font streams referenced by font descriptors (the
+    // same stream may be shared by several descriptors).
+    const targets: { ref: PDFRef; name: string; kind: FontKind }[] = [];
     const seenRefs = new Set<string>();
-    let otherFormats = 0;
     for (const [, obj] of doc.context.enumerateIndirectObjects()) {
         if (!(obj instanceof PDFDict)) continue;
-        const fontFile2 = obj.get(PDFName.of("FontFile2"));
-        if (fontFile2 instanceof PDFRef) {
-            if (!seenRefs.has(fontFile2.tag)) {
-                seenRefs.add(fontFile2.tag);
-                targets.push({ ref: fontFile2, name: descriptorFontName(obj) });
+        const candidates: [string, FontKind][] = [
+            ["FontFile2", "truetype"],
+            ["FontFile3", "fontfile3"],
+            ["FontFile", "type1"],
+        ];
+        for (const [key, kind] of candidates) {
+            const ref = obj.get(PDFName.of(key));
+            if (ref instanceof PDFRef) {
+                if (!seenRefs.has(ref.tag)) {
+                    seenRefs.add(ref.tag);
+                    targets.push({ ref, name: descriptorFontName(obj), kind });
+                }
+                break;
             }
-        } else if (
-            obj.get(PDFName.of("FontFile")) instanceof PDFRef ||
-            obj.get(PDFName.of("FontFile3")) instanceof PDFRef
-        ) {
-            otherFormats++;
         }
     }
 
     if (targets.length === 0) {
-        if (otherFormats > 0) {
-            throw new Error(
-                "This PDF only embeds fonts in formats Ecofonts cannot rewrite yet (Type 1/CFF) — no TrueType fonts found.",
-            );
-        }
         throw new Error(
             "No embedded fonts found in this PDF — the text may use standard viewer fonts, which cannot be optimized.",
         );
@@ -72,33 +71,62 @@ export async function processPdf(
 
     const processedFonts: string[] = [];
     const warnings: string[] = [];
-    if (otherFormats > 0) {
-        warnings.push(
-            `${otherFormats} font${otherFormats === 1 ? "" : "s"} embedded in Type 1/CFF format — kept as-is`,
-        );
-    }
 
     for (let i = 0; i < targets.length; i++) {
-        const { ref, name } = targets[i];
+        const { ref, name, kind } = targets[i];
         try {
             const stream = doc.context.lookup(ref);
             if (!(stream instanceof PDFRawStream)) {
                 throw new Error("font stream has an unexpected object type");
             }
+            const subtype = stream.dict.get(PDFName.of("Subtype"));
             const fontBytes = decodePDFRawStream(stream).decode();
-            const { buffer } = await ecoProcessTrueType(fontBytes, intensity, (done, total) =>
+            const report = (done: number, total: number) =>
                 onProgress?.({
                     fileName: name,
                     fileIndex: i + 1,
                     fileCount: targets.length,
                     glyphsDone: done,
                     glyphsTotal: total,
-                }),
-            );
+                });
+
+            let buffer: ArrayBuffer;
+            let type1Lengths: { length1: number; length2: number; length3: number } | null = null;
+            if (kind === "truetype") {
+                buffer = (await ecoProcessTrueType(fontBytes, intensity, report)).buffer;
+            } else if (kind === "type1") {
+                const result = await ecoProcessType1(fontBytes, intensity, report);
+                buffer = result.buffer;
+                type1Lengths = result;
+            } else {
+                // FontFile3: bare CFF (Type1C/CIDFontType0C) or a full
+                // OpenType wrapper — sniff the actual bytes rather than
+                // trusting the declared subtype.
+                const version = new DataView(
+                    fontBytes.buffer,
+                    fontBytes.byteOffset,
+                    fontBytes.byteLength,
+                ).getUint32(0);
+                if (version === 0x4f54544f || version === 0x00010000 || version === 0x74727565) {
+                    buffer = await ecoProcessSfnt(fontBytes, intensity, report);
+                } else {
+                    buffer = (await ecoProcessCff(fontBytes, intensity, report)).buffer;
+                }
+            }
+
             const newBytes = new Uint8Array(buffer);
             const newStream = doc.context.flateStream(newBytes);
-            // FontFile2 requires Length1 = uncompressed font program size.
-            newStream.dict.set(PDFName.of("Length1"), PDFNumber.of(newBytes.length));
+            if (kind === "truetype") {
+                // FontFile2 requires Length1 = uncompressed font program size.
+                newStream.dict.set(PDFName.of("Length1"), PDFNumber.of(newBytes.length));
+            } else if (kind === "type1" && type1Lengths) {
+                // FontFile requires the three segment lengths.
+                newStream.dict.set(PDFName.of("Length1"), PDFNumber.of(type1Lengths.length1));
+                newStream.dict.set(PDFName.of("Length2"), PDFNumber.of(type1Lengths.length2));
+                newStream.dict.set(PDFName.of("Length3"), PDFNumber.of(type1Lengths.length3));
+            } else if (subtype instanceof PDFName) {
+                newStream.dict.set(PDFName.of("Subtype"), subtype);
+            }
             doc.context.assign(ref, newStream);
             processedFonts.push(name);
         } catch (err) {

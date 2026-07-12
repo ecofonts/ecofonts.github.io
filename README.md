@@ -80,8 +80,9 @@ work.
 - Ligatures (GSUB) and variation axes are dropped from re-compiled fonts;
   variable fonts come back as their default instance (upload the family ZIP
   to keep all weights).
-- In PDFs, only embedded TrueType (`FontFile2`) fonts are rewritten — Type 1/
-  CFF fonts and non-embedded viewer fonts are left unchanged, with a warning.
+- In PDFs, all embedded font formats are rewritten — TrueType (`FontFile2`),
+  CFF/OpenType (`FontFile3`), and legacy Type 1 (`FontFile`). Only text drawn
+  with non-embedded viewer fonts cannot be optimized.
 - Optimized files are larger than the originals (curves become line
   segments); that's inherent to the approach.
 
