@@ -19,6 +19,23 @@ export default function FontOptimizer() {
         drawPreview(result?.previewProcessed ?? null, ecoCanvasRef.current);
     }, [result]);
 
+    // Pick up a file dropped on the landing page (handed over via IndexedDB)
+    // and start processing it right away.
+    useEffect(() => {
+        let cancelled = false;
+        void (async () => {
+            const { takeFile } = await import("../lib/handoff");
+            const handed = await takeFile();
+            if (handed && !cancelled) {
+                setFile(handed);
+                void runProcess(handed);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
         setFile(event.target.files?.[0] ?? null);
         setResult(null);
@@ -26,8 +43,7 @@ export default function FontOptimizer() {
         setProgress(null);
     }
 
-    async function handleProcess() {
-        if (!file || busy) return;
+    async function runProcess(target: File) {
         setBusy(true);
         setError(null);
         setResult(null);
@@ -36,8 +52,8 @@ export default function FontOptimizer() {
             // Loaded on demand: keeps opentype.js/clipper/jszip out of the
             // initial bundle and out of the server-side prerender pass.
             const { processUpload } = await import("../lib/pipeline");
-            const data = await file.arrayBuffer();
-            setResult(await processUpload(file.name, data, intensity, setProgress));
+            const data = await target.arrayBuffer();
+            setResult(await processUpload(target.name, data, intensity, setProgress));
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err));
         } finally {
@@ -77,6 +93,11 @@ export default function FontOptimizer() {
                     onChange={handleFileChange}
                     disabled={busy}
                 />
+                {file && (
+                    <p style={{ margin: "8px 0 0", fontSize: 14 }}>
+                        Selected: <strong>{file.name}</strong> ({Math.max(1, Math.round(file.size / 1024))} KB)
+                    </p>
+                )}
             </section>
 
             <section style={{ marginTop: 16 }}>
@@ -97,7 +118,11 @@ export default function FontOptimizer() {
             </section>
 
             <section style={{ marginTop: 16 }}>
-                <button type="button" onClick={handleProcess} disabled={!file || busy}>
+                <button
+                    type="button"
+                    onClick={() => file && !busy && runProcess(file)}
+                    disabled={!file || busy}
+                >
                     {busy ? "Processing…" : "Optimize font"}
                 </button>
             </section>

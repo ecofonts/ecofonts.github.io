@@ -9,8 +9,16 @@ modified file for download. No font data ever leaves the browser.
 
 - **Framework:** Astro (static output) + `@astrojs/react`.
 - **Routes:**
-  - `/` — [src/pages/index.astro](src/pages/index.astro): intentionally blank landing page (stub).
+  - `/` — [src/pages/index.astro](src/pages/index.astro): landing page (hero + drop zone, how-it-works,
+    features, FAQ). Fully static with one inline script for the drop zone;
+    scoped styles live in the page itself. Brand green is `#01bf63`; the
+    logo is [public/favicon.svg](public/favicon.svg) (used as favicon and nav logo on both pages).
   - `/font` — [src/pages/font.astro](src/pages/font.astro): mounts the optimizer React component with `client:load`.
+- **Landing → optimizer file handoff:** dropping a font on `/` stashes the
+  `File` in IndexedDB ([src/lib/handoff.ts](src/lib/handoff.ts)) and navigates to `/font`, which
+  takes it on mount and starts processing automatically. IndexedDB (not
+  sessionStorage) because `File` objects survive structured cloning there
+  and fonts can exceed string-storage quotas.
 - **Strictly client-side processing.** There are no API routes, server
   endpoints, or serverless functions — all parsing, geometry, and packaging
   runs in the browser. Keep it that way.
