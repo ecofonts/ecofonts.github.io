@@ -25,11 +25,13 @@ modified file for download. No font data ever leaves the browser.
 
 ### Source layout
 
-- [src/components/FontOptimizer.tsx](src/components/FontOptimizer.tsx) — UI: file input (`.ttf`/`.zip`),
-  "Eco Intensity" slider (1–20%), progress display, before/after canvas
-  preview, blob download. Loads the pipeline with a dynamic `import()` on
-  first use — this keeps the heavy libraries out of the initial bundle **and
-  out of Astro's prerender pass** (see gotchas).
+- [src/components/FontOptimizer.tsx](src/components/FontOptimizer.tsx) — UI: drag-and-drop upload zone
+  (`.ttf`/`.zip`), "Eco Intensity" slider (1–20%), progress display,
+  before/after canvas preview, blob download. Styled by
+  [src/components/FontOptimizer.css](src/components/FontOptimizer.css), which shares the landing page's
+  design tokens (brand green `#01bf63`). Loads the pipeline with a dynamic
+  `import()` on first use — this keeps the heavy libraries out of the
+  initial bundle **and out of Astro's prerender pass** (see gotchas).
 - [src/lib/pipeline.ts](src/lib/pipeline.ts) — file-level routing: single `.ttf` vs `.zip`
   traversal with JSZip. Rewrites zip entries in place so the archive keeps
   its exact folder structure (e.g. Google Fonts `static/` folders); non-font

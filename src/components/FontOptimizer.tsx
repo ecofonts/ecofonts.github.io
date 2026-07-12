@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import type { Font } from "opentype.js";
 import type { EcoResult, ProgressInfo } from "../lib/pipeline";
+import "./FontOptimizer.css";
 
 const PREVIEW_TEXT = "Handgloves 0123";
+const ACCEPTED_RE = /\.(ttf|zip)$/i;
 
 export default function FontOptimizer() {
     const [file, setFile] = useState<File | null>(null);
     const [intensity, setIntensity] = useState(10);
     const [busy, setBusy] = useState(false);
+    const [dragOver, setDragOver] = useState(false);
     const [progress, setProgress] = useState<ProgressInfo | null>(null);
     const [result, setResult] = useState<EcoResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
     const originalCanvasRef = useRef<HTMLCanvasElement>(null);
     const ecoCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -36,8 +40,13 @@ export default function FontOptimizer() {
         };
     }, []);
 
-    function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-        setFile(event.target.files?.[0] ?? null);
+    function acceptFile(candidate: File | undefined) {
+        if (busy) return;
+        if (!candidate || !ACCEPTED_RE.test(candidate.name)) {
+            setError("Please choose a .ttf font or a .zip archive.");
+            return;
+        }
+        setFile(candidate);
         setResult(null);
         setError(null);
         setProgress(null);
@@ -74,117 +83,147 @@ export default function FontOptimizer() {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
+    const dropzoneClass = [
+        "eco-dropzone",
+        dragOver ? "dragover" : "",
+        busy ? "disabled" : "",
+    ]
+        .filter(Boolean)
+        .join(" ");
+
     return (
-        <main style={{ maxWidth: 640, margin: "0 auto", padding: 16, fontFamily: "system-ui, sans-serif" }}>
-            <h1>Ecofonts</h1>
-            <p>
+        <main className="eco-main">
+            <h1>Font optimizer</h1>
+            <p className="eco-lede">
                 Upload a <code>.ttf</code> font or a <code>.zip</code> of fonts. Ecofonts punches
                 tiny holes into every glyph so the font prints with less ink. Everything runs in
                 your browser — files never leave your machine.
             </p>
 
-            <section>
-                <label htmlFor="font-file">Font file (.ttf or .zip)</label>
-                <br />
+            <div
+                className={dropzoneClass}
+                role="button"
+                tabIndex={0}
+                aria-label="Drop a .ttf or .zip font file here, or press Enter to browse"
+                onClick={() => !busy && inputRef.current?.click()}
+                onKeyDown={(event) => {
+                    if (!busy && (event.key === "Enter" || event.key === " ")) {
+                        event.preventDefault();
+                        inputRef.current?.click();
+                    }
+                }}
+                onDragOver={(event) => {
+                    event.preventDefault();
+                    if (!busy) setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(event) => {
+                    event.preventDefault();
+                    setDragOver(false);
+                    acceptFile(event.dataTransfer.files?.[0]);
+                }}
+            >
+                <p>
+                    <strong>{file ? file.name : "Drop your font here"}</strong>
+                </p>
+                <p className="eco-hint">
+                    {file
+                        ? `${Math.max(1, Math.round(file.size / 1024))} KB — click to change`
+                        : ".ttf or .zip — or click to browse"}
+                </p>
                 <input
-                    id="font-file"
+                    ref={inputRef}
                     type="file"
                     accept=".ttf,.zip"
-                    onChange={handleFileChange}
+                    hidden
+                    onChange={(event) => acceptFile(event.target.files?.[0])}
                     disabled={busy}
                 />
-                {file && (
-                    <p style={{ margin: "8px 0 0", fontSize: 14 }}>
-                        Selected: <strong>{file.name}</strong> ({Math.max(1, Math.round(file.size / 1024))} KB)
-                    </p>
-                )}
-            </section>
+            </div>
 
-            <section style={{ marginTop: 16 }}>
-                <label htmlFor="eco-intensity">
-                    Eco Intensity: <strong>{intensity}%</strong> (approx. ink area removed)
-                </label>
-                <br />
-                <input
-                    id="eco-intensity"
-                    type="range"
-                    min={1}
-                    max={20}
-                    step={1}
-                    value={intensity}
-                    onChange={(event) => setIntensity(Number(event.target.value))}
-                    disabled={busy}
-                />
-            </section>
-
-            <section style={{ marginTop: 16 }}>
+            <div className="eco-controls">
+                <div className="eco-slider-group">
+                    <label htmlFor="eco-intensity">
+                        Eco Intensity: <span className="eco-value">{intensity}%</span>
+                        <span className="eco-sub">approx. ink area removed</span>
+                    </label>
+                    <input
+                        id="eco-intensity"
+                        type="range"
+                        min={1}
+                        max={20}
+                        step={1}
+                        value={intensity}
+                        onChange={(event) => setIntensity(Number(event.target.value))}
+                        disabled={busy}
+                    />
+                </div>
                 <button
                     type="button"
+                    className="eco-btn"
                     onClick={() => file && !busy && runProcess(file)}
                     disabled={!file || busy}
                 >
                     {busy ? "Processing…" : "Optimize font"}
                 </button>
-            </section>
+            </div>
 
             {busy && progress && (
-                <section style={{ marginTop: 16 }} aria-live="polite">
+                <div className="eco-progress" aria-live="polite">
                     <p>
                         Processing {progress.fileName} ({progress.fileIndex}/{progress.fileCount})
                         — glyph {progress.glyphsDone}/{progress.glyphsTotal}
                     </p>
                     <progress value={progress.glyphsDone} max={progress.glyphsTotal || 1} />
-                </section>
+                </div>
             )}
 
             {error && (
-                <section style={{ marginTop: 16, color: "#b00020" }} role="alert">
-                    <p>Error: {error}</p>
-                </section>
+                <div className="eco-error" role="alert">
+                    <p>{error}</p>
+                </div>
             )}
 
             {result && (
-                <section style={{ marginTop: 16 }}>
-                    <h2>Done</h2>
+                <section className="eco-result">
+                    <h2>
+                        <span className="eco-check" aria-hidden="true">
+                            ✓
+                        </span>
+                        Your ecofont is ready
+                    </h2>
                     <p>
                         Processed {result.processedFonts.length} font
                         {result.processedFonts.length === 1 ? "" : "s"}:
                     </p>
-                    <ul>
+                    <ul className="eco-list">
                         {result.processedFonts.map((name) => (
                             <li key={name}>{name}</li>
                         ))}
                     </ul>
                     {result.warnings.length > 0 && (
-                        <ul style={{ color: "#8a6d00" }}>
+                        <ul className="eco-warnings">
                             {result.warnings.map((warning) => (
                                 <li key={warning}>{warning}</li>
                             ))}
                         </ul>
                     )}
-                    <button type="button" onClick={handleDownload}>
-                        Download {result.fileName}
-                    </button>
+                    <div className="eco-download">
+                        <button type="button" className="eco-btn" onClick={handleDownload}>
+                            Download {result.fileName}
+                        </button>
+                    </div>
 
-                    <h3 style={{ marginTop: 16 }}>Preview</h3>
-                    <figure style={{ margin: 0 }}>
-                        <figcaption>Original</figcaption>
-                        <canvas
-                            ref={originalCanvasRef}
-                            width={600}
-                            height={110}
-                            style={{ background: "#fff", border: "1px solid #ccc", maxWidth: "100%" }}
-                        />
-                    </figure>
-                    <figure style={{ margin: 0 }}>
-                        <figcaption>Ecofont</figcaption>
-                        <canvas
-                            ref={ecoCanvasRef}
-                            width={600}
-                            height={110}
-                            style={{ background: "#fff", border: "1px solid #ccc", maxWidth: "100%" }}
-                        />
-                    </figure>
+                    <div className="eco-previews">
+                        <figure>
+                            <figcaption>Original</figcaption>
+                            <canvas ref={originalCanvasRef} width={600} height={110} />
+                        </figure>
+                        <figure>
+                            <figcaption>Ecofont</figcaption>
+                            <canvas ref={ecoCanvasRef} width={600} height={110} />
+                        </figure>
+                    </div>
                 </section>
             )}
         </main>

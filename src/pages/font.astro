@@ -8,18 +8,53 @@ import FontOptimizer from "../components/FontOptimizer";
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
+		<meta
+			name="description"
+			content="Optimize a .ttf font or a .zip font family to print with less ink — entirely in your browser."
+		/>
 		<title>Ecofonts — Font Optimizer</title>
 	</head>
 	<body>
-		<nav style="max-width: 640px; margin: 0 auto; padding: 16px;">
-			<a
-				href="/"
-				style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; font-weight: 700; font-family: system-ui, sans-serif;"
-			>
-				<img src="/favicon.svg" alt="Ecofonts logo" width="28" height="28" />
-				Ecofonts
+		<nav>
+			<a class="brand" href="/">
+				<img src="/favicon.svg" alt="Ecofonts logo" width="32" height="32" />
+				<span>Ecofonts</span>
 			</a>
+			<a class="home-link" href="/">Home</a>
 		</nav>
 		<FontOptimizer client:load />
+
+		<style>
+			body {
+				margin: 0;
+				background: #fff;
+				font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+			}
+			nav {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				max-width: 1040px;
+				margin: 0 auto;
+				padding: 16px 24px;
+			}
+			.brand {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				text-decoration: none;
+				color: #12211a;
+				font-weight: 700;
+				font-size: 1.15rem;
+			}
+			.home-link {
+				color: #5b6b62;
+				text-decoration: none;
+				font-weight: 600;
+			}
+			.home-link:hover {
+				color: #019a50;
+			}
+		</style>
 	</body>
 </html>

@@ -1,0 +1,210 @@
+/* Styling for the /font optimizer, matching the landing page's design
+   language (see src/pages/index.astro). */
+:root {
+    --green: #01bf63;
+    --green-dark: #019a50;
+    --green-tint: #e9faf1;
+    --ink: #12211a;
+    --muted: #5b6b62;
+    --line: #e3ece7;
+}
+
+.eco-main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 8px 24px 64px;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    line-height: 1.6;
+}
+.eco-main h1 {
+    font-size: 2.1rem;
+    line-height: 1.2;
+    margin: 0 0 8px;
+}
+.eco-lede {
+    color: var(--muted);
+    margin: 0 0 28px;
+}
+
+/* Upload drop zone — same pattern as the landing hero. */
+.eco-dropzone {
+    border: 2px dashed var(--green);
+    border-radius: 16px;
+    background: var(--green-tint);
+    padding: 36px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition:
+        background 0.15s,
+        transform 0.15s,
+        box-shadow 0.15s;
+}
+.eco-dropzone:hover,
+.eco-dropzone:focus-visible,
+.eco-dropzone.dragover {
+    background: #d9f5e7;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(1, 191, 99, 0.18);
+    outline: none;
+}
+.eco-dropzone.disabled {
+    opacity: 0.6;
+    cursor: default;
+    transform: none;
+    box-shadow: none;
+}
+.eco-dropzone p {
+    margin: 0;
+}
+.eco-dropzone .eco-hint {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-top: 6px;
+}
+
+.eco-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 24px;
+    margin-top: 28px;
+}
+.eco-slider-group {
+    flex: 1;
+    min-width: 240px;
+}
+.eco-slider-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+.eco-slider-group .eco-value {
+    color: var(--green-dark);
+}
+.eco-slider-group .eco-sub {
+    display: block;
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+.eco-slider-group input[type="range"] {
+    width: 100%;
+    accent-color: var(--green);
+}
+
+.eco-btn {
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 28px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.eco-btn:hover:not(:disabled) {
+    background: var(--green-dark);
+}
+.eco-btn:disabled {
+    background: #a8c4b5;
+    cursor: not-allowed;
+}
+
+.eco-progress {
+    margin-top: 28px;
+}
+.eco-progress p {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin: 0 0 8px;
+}
+.eco-progress progress {
+    width: 100%;
+    height: 10px;
+    accent-color: var(--green);
+}
+
+.eco-error {
+    margin-top: 24px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    background: #fdecef;
+    border: 1px solid #f5c8d0;
+    color: #9f1e35;
+}
+.eco-error p {
+    margin: 0;
+}
+
+.eco-result {
+    margin-top: 36px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 28px;
+}
+.eco-result h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.4rem;
+    margin: 0 0 4px;
+}
+.eco-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--green);
+    color: #fff;
+    font-size: 1rem;
+    flex: none;
+}
+.eco-result > p {
+    color: var(--muted);
+    margin: 0;
+}
+.eco-list {
+    margin: 10px 0 0;
+    padding-left: 22px;
+    color: var(--muted);
+}
+.eco-warnings {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: #fff8e6;
+    border: 1px solid #f2e3b3;
+    color: #7a5d00;
+    font-size: 0.95rem;
+}
+.eco-download {
+    margin-top: 22px;
+}
+
+.eco-previews {
+    margin-top: 30px;
+}
+.eco-previews figure {
+    margin: 0 0 18px;
+}
+.eco-previews figcaption {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+.eco-previews canvas {
+    display: block;
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
