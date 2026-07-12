@@ -22,6 +22,16 @@ browser.
   [public/favicon.svg](public/favicon.svg).
 - **Copy priority:** PDFs lead the messaging everywhere (hero, drop zones,
   FAQ, accept-attribute order); fonts are secondary. Keep it that way.
+- **SEO & PWA:** `site` is `https://ecofonts.github.io` (astro.config), with
+  @astrojs/sitemap + [public/robots.txt](public/robots.txt). Base.astro emits canonical/OG/
+  Twitter tags (social image [public/og.png](public/og.png)) and registers the service
+  worker [public/sw.js](public/sw.js) (production only; runtime caching — network-first
+  HTML, cache-first hashed assets). The landing page carries WebApplication
+  and FAQPage JSON-LD — **the FAQPage entries must mirror the visible FAQ**;
+  update both together. PNG assets (icons, og.png) are generated from the
+  SVG logo by [scripts/generate-assets.mjs](scripts/generate-assets.mjs) (`node scripts/generate-assets.mjs`;
+  needs Arial from C:\Windows\Fonts for the og.png text). Bump the CACHE
+  version in sw.js when changing precached shell files.
 - **Routes:**
   - `/` — [src/pages/index.astro](src/pages/index.astro): landing page (hero + drop zone, how-it-works,
     features, Google Fonts import guide, FAQ). Static, with one inline

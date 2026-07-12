@@ -10,6 +10,10 @@ interface Props {
 	description: string;
 }
 const { title, description } = Astro.props;
+
+const site = Astro.site ?? new URL("https://ecofonts.github.io");
+const canonical = new URL(Astro.url.pathname, site);
+const socialImage = new URL("/og.png", site);
 ---
 
 <html lang="en">
@@ -20,6 +24,25 @@ const { title, description } = Astro.props;
 		<meta name="generator" content={Astro.generator} />
 		<meta name="description" content={description} />
 		<title>{title}</title>
+		<link rel="canonical" href={canonical} />
+		<link rel="sitemap" href="/sitemap-index.xml" />
+		<link rel="manifest" href="/manifest.webmanifest" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafcfb" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a100d" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Ecofonts" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:image" content={socialImage} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="Ecofonts — Save Ink, Save the planet" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={socialImage} />
 		<script is:inline>
 			(() => {
 				let theme = null;
@@ -120,6 +143,18 @@ const { title, description } = Astro.props;
 					localStorage.setItem("ecofonts-theme", next);
 				} catch {}
 			});
+
+			// PWA: offline support via a runtime-caching service worker.
+			// Production only — in dev it would cache Vite's HMR responses.
+			if ("serviceWorker" in navigator) {
+				if (import.meta.env.PROD) {
+					navigator.serviceWorker.register("/sw.js").catch(() => {});
+				} else {
+					void navigator.serviceWorker
+						.getRegistrations()
+						.then((regs) => regs.forEach((reg) => void reg.unregister()));
+				}
+			}
 		</script>
 
 		<style is:global>

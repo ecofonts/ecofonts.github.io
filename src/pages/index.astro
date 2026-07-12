@@ -2,6 +2,79 @@
 // Ecofonts landing page. The drop zone stashes the file in IndexedDB
 // (src/lib/handoff.ts) and redirects to /font, which picks it up.
 import Base from "../layouts/Base.astro";
+
+const site = "https://ecofonts.github.io";
+
+// Structured data for rich search results. The FAQ entries must mirror the
+// visible FAQ section below — search engines penalize mismatches.
+const webAppSchema = {
+	"@context": "https://schema.org",
+	"@type": "WebApplication",
+	name: "Ecofonts",
+	url: `${site}/`,
+	image: `${site}/og.png`,
+	applicationCategory: "UtilitiesApplication",
+	operatingSystem: "Any",
+	browserRequirements: "Requires a modern web browser with JavaScript",
+	description:
+		"Optimize PDFs and fonts to print with less ink — 100% in your browser. Your files never leave your machine.",
+	offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+	featureList: [
+		"Optimize every embedded font in a PDF",
+		"Optimize .ttf fonts and .zip font families",
+		"Adjustable ink savings from 1% to 20%",
+		"Runs entirely client-side — no uploads",
+	],
+};
+
+const faq = [
+	[
+		"How does this work?",
+		"Ecofonts reads the vector outlines of every glyph — in a PDF, from each embedded font — then subtracts a fine grid of tiny holes from the interior of each letter using boolean geometry. The outer silhouette of every letter is left untouched, and the modified outlines are compiled back into the file you uploaded.",
+	],
+	[
+		"Can I optimize a whole PDF?",
+		"Yes. Drop a .pdf and Ecofonts finds every TrueType font embedded in the document, punches the eco holes into its glyphs, and rebuilds the file. The layout, images, and text stay exactly as they were — the text even remains selectable.",
+	],
+	[
+		"Does this work completely on my computer?",
+		"Yes — 100%. There is no server: parsing, geometry, and packaging all run in your browser. Your files are never uploaded anywhere, and the page even works offline once it has loaded.",
+	],
+	[
+		"Which files are supported?",
+		"A .pdf document, a single .ttf font, or a .zip archive containing .ttf fonts — including nested folders such as the static/ directory in Google Fonts downloads. Archives come back with their exact structure preserved.",
+	],
+	[
+		"How do I use a font from Google Fonts?",
+		"Download the family from fonts.google.com (Get font → Download all) and drop the resulting .zip on Ecofonts. Every weight and style inside is optimized and the archive keeps its structure.",
+	],
+	[
+		"Will my text still look good?",
+		"Yes. A minimum wall of ink is always preserved around every hole, so the edges of each letter stay solid and sharp. At typical reading sizes the holes are too small to notice.",
+	],
+	[
+		"How much ink can I actually save?",
+		"The Eco Intensity slider goes from 1% to 20%, and it maps to the real share of printed area removed from the letters — at 15% intensity, roughly 15% less ink goes on the page for the same text.",
+	],
+	[
+		"What about variable fonts?",
+		"Variable fonts are processed as their default style. For a full family (Bold, Light, Italic…), upload the whole zip — the fixed-weight fonts in its static/ folder carry every style through.",
+	],
+	[
+		"Am I allowed to modify a font?",
+		"That depends on the font's license. Open licenses like the SIL Open Font License explicitly allow modification. For commercial fonts, check your license terms first.",
+	],
+];
+
+const faqSchema = {
+	"@context": "https://schema.org",
+	"@type": "FAQPage",
+	mainEntity: faq.map(([question, answer]) => ({
+		"@type": "Question",
+		name: question,
+		acceptedAnswer: { "@type": "Answer", text: answer },
+	})),
+};
 ---
 
 <Base
@@ -9,6 +82,9 @@ import Base from "../layouts/Base.astro";
 	description="Drop a PDF and Ecofonts rewrites every embedded font with microscopic ink-saving holes — 100% in your browser. Fonts and font families work too."
 >
 	<a slot="nav-actions" class="btn" href="/font">Open the optimizer</a>
+
+	<script type="application/ld+json" set:html={JSON.stringify(webAppSchema)} is:inline />
+	<script type="application/ld+json" set:html={JSON.stringify(faqSchema)} is:inline />
 
 	<header class="hero">
 		<p class="badge">100% in your browser — nothing gets uploaded</p>
