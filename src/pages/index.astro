@@ -27,22 +27,24 @@
 		<header class="hero">
 			<h1>Save Ink, <span class="accent">Save the planet</span></h1>
 			<p class="tagline">
-				Ecofonts punches microscopic holes into every letter of your font. Your documents look
-				the same — your printer uses up to 20% less ink.
+				Ecofonts punches microscopic holes into every letter of your fonts and PDFs. Your
+				documents look the same — your printer uses up to 20% less ink.
 			</p>
 
 			<div
 				id="dropzone"
 				role="button"
 				tabindex="0"
-				aria-label="Drop a .ttf or .zip font file here, or press Enter to browse"
+				aria-label="Drop a .ttf, .zip or .pdf file here, or press Enter to browse"
 			>
 				<img src="/favicon.svg" alt="" width="48" height="48" />
-				<p><strong>Drop your font here</strong></p>
-				<p class="hint">.ttf or .zip — or click to browse</p>
-				<input id="drop-input" type="file" accept=".ttf,.zip" hidden />
+				<p><strong>Drop your font or PDF here</strong></p>
+				<p class="hint">.ttf, .zip or .pdf — or click to browse</p>
+				<input id="drop-input" type="file" accept=".ttf,.zip,.pdf" hidden />
 			</div>
-			<p id="drop-error" role="alert" hidden>Please choose a .ttf font or a .zip archive.</p>
+			<p id="drop-error" role="alert" hidden>
+				Please choose a .ttf font, a .zip archive, or a .pdf document.
+			</p>
 			<p class="privacy">Everything runs in your browser. Your font never leaves your computer.</p>
 		</header>
 
@@ -54,8 +56,8 @@
 						<span class="step">1</span>
 						<h3>Upload</h3>
 						<p>
-							Drop a <code>.ttf</code> file — or a whole <code>.zip</code> font family, like the
-							ones you download from Google Fonts.
+							Drop a <code>.ttf</code> file, a whole <code>.zip</code> font family — like the
+							ones you download from Google Fonts — or a <code>.pdf</code> document.
 						</p>
 					</article>
 					<article class="card">
@@ -134,10 +136,21 @@
 				<details>
 					<summary>Which files are supported?</summary>
 					<p>
-						A single <code>.ttf</code> font, or a <code>.zip</code> archive containing
+						A single <code>.ttf</code> font, a <code>.zip</code> archive containing
 						<code>.ttf</code> fonts — including nested folders such as the
-						<code>static/</code> directory in Google Fonts downloads. The archive comes back
-						with its exact structure preserved.
+						<code>static/</code> directory in Google Fonts downloads — or a
+						<code>.pdf</code> document. Archives come back with their exact structure
+						preserved.
+					</p>
+				</details>
+				<details>
+					<summary>Can I optimize a whole PDF?</summary>
+					<p>
+						Yes. Drop a <code>.pdf</code> and Ecofonts finds every TrueType font embedded in
+						the document, punches the eco holes into its glyphs, and rebuilds the file. The
+						layout, images, and text stay exactly as they were — the text even remains
+						selectable. Fonts embedded in other formats (Type 1/CFF) are left unchanged, and
+						you'll see a note when that happens.
 					</p>
 				</details>
 				<details>

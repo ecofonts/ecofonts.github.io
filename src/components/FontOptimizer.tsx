@@ -4,7 +4,7 @@ import type { EcoResult, ProgressInfo } from "../lib/pipeline";
 import "./FontOptimizer.css";
 
 const PREVIEW_TEXT = "Handgloves 0123";
-const ACCEPTED_RE = /\.(ttf|zip)$/i;
+const ACCEPTED_RE = /\.(ttf|zip|pdf)$/i;
 
 export default function FontOptimizer() {
     const [file, setFile] = useState<File | null>(null);
@@ -43,7 +43,7 @@ export default function FontOptimizer() {
     function acceptFile(candidate: File | undefined) {
         if (busy) return;
         if (!candidate || !ACCEPTED_RE.test(candidate.name)) {
-            setError("Please choose a .ttf font or a .zip archive.");
+            setError("Please choose a .ttf font, a .zip archive, or a .pdf document.");
             return;
         }
         setFile(candidate);
@@ -95,16 +95,17 @@ export default function FontOptimizer() {
         <main className="eco-main">
             <h1>Font optimizer</h1>
             <p className="eco-lede">
-                Upload a <code>.ttf</code> font or a <code>.zip</code> of fonts. Ecofonts punches
-                tiny holes into every glyph so the font prints with less ink. Everything runs in
-                your browser — files never leave your machine.
+                Upload a <code>.ttf</code> font, a <code>.zip</code> of fonts, or a{" "}
+                <code>.pdf</code> document. Ecofonts punches tiny holes into every glyph — in a
+                PDF, every embedded font gets optimized — so printing uses less ink. Everything
+                runs in your browser — files never leave your machine.
             </p>
 
             <div
                 className={dropzoneClass}
                 role="button"
                 tabIndex={0}
-                aria-label="Drop a .ttf or .zip font file here, or press Enter to browse"
+                aria-label="Drop a .ttf, .zip or .pdf file here, or press Enter to browse"
                 onClick={() => !busy && inputRef.current?.click()}
                 onKeyDown={(event) => {
                     if (!busy && (event.key === "Enter" || event.key === " ")) {
@@ -124,17 +125,17 @@ export default function FontOptimizer() {
                 }}
             >
                 <p>
-                    <strong>{file ? file.name : "Drop your font here"}</strong>
+                    <strong>{file ? file.name : "Drop your font or PDF here"}</strong>
                 </p>
                 <p className="eco-hint">
                     {file
                         ? `${Math.max(1, Math.round(file.size / 1024))} KB — click to change`
-                        : ".ttf or .zip — or click to browse"}
+                        : ".ttf, .zip or .pdf — or click to browse"}
                 </p>
                 <input
                     ref={inputRef}
                     type="file"
-                    accept=".ttf,.zip"
+                    accept=".ttf,.zip,.pdf"
                     hidden
                     onChange={(event) => acceptFile(event.target.files?.[0])}
                     disabled={busy}
@@ -214,16 +215,18 @@ export default function FontOptimizer() {
                         </button>
                     </div>
 
-                    <div className="eco-previews">
-                        <figure>
-                            <figcaption>Original</figcaption>
-                            <canvas ref={originalCanvasRef} width={600} height={110} />
-                        </figure>
-                        <figure>
-                            <figcaption>Ecofont</figcaption>
-                            <canvas ref={ecoCanvasRef} width={600} height={110} />
-                        </figure>
-                    </div>
+                    {result.previewProcessed && (
+                        <div className="eco-previews">
+                            <figure>
+                                <figcaption>Original</figcaption>
+                                <canvas ref={originalCanvasRef} width={600} height={110} />
+                            </figure>
+                            <figure>
+                                <figcaption>Ecofont</figcaption>
+                                <canvas ref={ecoCanvasRef} width={600} height={110} />
+                            </figure>
+                        </div>
+                    )}
                 </section>
             )}
         </main>

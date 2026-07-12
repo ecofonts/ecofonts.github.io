@@ -10,6 +10,7 @@ import { parseFont, processTtf } from "./ecofont";
 
 const TTF_RE = /\.ttf$/i;
 const ZIP_RE = /\.zip$/i;
+const PDF_RE = /\.pdf$/i;
 
 export interface ProgressInfo {
     /** Name (zip-relative path) of the font currently being processed. */
@@ -49,7 +50,10 @@ export async function processUpload(
     const intensity = Math.min(Math.max(intensityPercent, 1), 20) / 100;
     if (ZIP_RE.test(fileName)) return processZip(fileName, data, intensity, onProgress);
     if (TTF_RE.test(fileName)) return processSingleTtf(fileName, data, intensity, onProgress);
-    throw new Error("Unsupported file type — upload a .ttf font or a .zip archive.");
+    if (PDF_RE.test(fileName)) return processPdfUpload(fileName, data, intensity, onProgress);
+    throw new Error(
+        "Unsupported file type — upload a .ttf font, a .zip archive, or a .pdf document.",
+    );
 }
 
 async function processSingleTtf(
@@ -142,6 +146,28 @@ async function processZip(
         warnings,
         previewOriginal,
         previewProcessed,
+    };
+}
+
+async function processPdfUpload(
+    fileName: string,
+    data: ArrayBuffer,
+    intensity: number,
+    onProgress?: ProgressCallback,
+): Promise<EcoResult> {
+    // pdf-lib is sizable — load it only when a PDF actually arrives.
+    const { processPdf } = await import("./pdf");
+    const result = await processPdf(data, intensity, onProgress);
+    return {
+        fileName,
+        mimeType: "application/pdf",
+        data: result.data,
+        processedFonts: result.processedFonts,
+        warnings: result.warnings,
+        // PDF-embedded fonts are usually subsets without the tables needed
+        // to render a text preview — the document itself is the preview.
+        previewOriginal: null,
+        previewProcessed: null,
     };
 }
 

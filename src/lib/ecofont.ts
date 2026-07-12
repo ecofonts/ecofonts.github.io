@@ -21,7 +21,7 @@ import { parse, Path } from "opentype.js";
 import type { Font, Glyph } from "opentype.js";
 
 /** Integer scale factor between font units and Clipper coordinates. */
-const SCALE = 100;
+export const SCALE = 100;
 /** Hole grid spacing, as a fraction of the em size. Smaller spacing means
  * more, smaller holes for the same target ink removal. */
 const HOLE_SPACING_EM = 0.055;
@@ -113,10 +113,12 @@ export async function processTtf(
 }
 
 /**
- * Subtract a grid of holes from one glyph's contours.
+ * Subtract a grid of holes from one glyph's contours (Clipper coordinates,
+ * i.e. font units multiplied by SCALE).
  * Returns the new contours, or null when the glyph should stay untouched.
+ * Also used by the TrueType glyf surgeon (src/lib/glyf.ts) for PDFs.
  */
-function subtractEcoHoles(
+export function subtractEcoHoles(
     contours: ClipPaths,
     upem: number,
     intensity: number,

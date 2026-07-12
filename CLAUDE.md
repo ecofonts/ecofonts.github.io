@@ -1,9 +1,11 @@
 # Ecofonts
 
-A 100% client-side font optimizer. Users upload a `.ttf` file or a `.zip` of
-fonts; Ecofonts subtracts a grid of small vector holes ("eco holes") from the
-interior of every glyph so the font prints with less ink, then returns the
-modified file for download. No font data ever leaves the browser.
+A 100% client-side font optimizer. Users upload a `.ttf` file, a `.zip` of
+fonts, or a `.pdf` document; Ecofonts subtracts a grid of small vector holes
+("eco holes") from the interior of every glyph so printing uses less ink,
+then returns the modified file for download. For PDFs, every embedded
+TrueType font in the document is optimized in place. No data ever leaves the
+browser.
 
 ## Architecture
 
@@ -33,14 +35,27 @@ modified file for download. No font data ever leaves the browser.
   `import()` on first use — this keeps the heavy libraries out of the
   initial bundle **and out of Astro's prerender pass** (see gotchas).
 - [src/lib/pipeline.ts](src/lib/pipeline.ts) — file-level routing: single `.ttf` vs `.zip`
-  traversal with JSZip. Rewrites zip entries in place so the archive keeps
-  its exact folder structure (e.g. Google Fonts `static/` folders); non-font
-  files pass through untouched; per-file failures become warnings and the
-  original file is kept.
+  traversal with JSZip vs `.pdf`. Rewrites zip entries in place so the
+  archive keeps its exact folder structure (e.g. Google Fonts `static/`
+  folders); non-font files pass through untouched; per-file failures become
+  warnings and the original file is kept.
 - [src/lib/ecofont.ts](src/lib/ecofont.ts) — geometry engine: opentype.js parse → flatten
   glyph outlines to polygons → boolean ops with clipper-lib → new paths →
   `font.toArrayBuffer()`. Browser-agnostic (ArrayBuffer in/out, no DOM), so
-  it can be exercised from Node for testing.
+  it can be exercised from Node for testing. Exports `subtractEcoHoles` +
+  `SCALE` for reuse by the glyf surgeon.
+- [src/lib/glyf.ts](src/lib/glyf.ts) — TrueType "glyf surgeon" used for PDF-embedded fonts:
+  parses glyf/loca directly from the binary (works on subset fonts that have
+  no cmap/name tables, where opentype.js fails), resolves composites, punches
+  holes, and reassembles the sfnt rewriting **only** glyf/loca (+ minimal
+  head/maxp patches). Untouched glyphs keep their original bytes including
+  hinting; glyph IDs and widths are preserved exactly, which the PDF's
+  CID-to-GID mapping depends on.
+- [src/lib/pdf.ts](src/lib/pdf.ts) — PDF plumbing via pdf-lib (dynamically imported): finds
+  every unique `FontFile2` stream referenced by a font descriptor, decodes it
+  (`decodePDFRawStream`), runs the glyf surgeon, re-embeds via
+  `context.flateStream` + `Length1`, and saves. Nothing else in the document
+  is modified.
 - [src/lib/clipper-lib.d.ts](src/lib/clipper-lib.d.ts) — hand-written types for the parts of
   `clipper-lib` we use (the package ships none).
 
@@ -84,6 +99,12 @@ area the wall protection preserves). Tuning constants live at the top of
   process fine.
 - Output files grow (curves become line segments); that is inherent to the
   approach.
+- **PDFs:** only `FontFile2` (TrueType) embedded fonts are rewritten —
+  `FontFile` (Type 1) and `FontFile3` (CFF) fonts are kept as-is with a
+  warning. Text drawn with non-embedded viewer fonts cannot be optimized.
+  Encrypted PDFs are rejected by pdf-lib at load time. The `.ttf`/`.zip`
+  paths still go through opentype.js (CFF output); only the PDF path uses
+  the glyf surgeon, which outputs true TrueType.
 
 ## Testing
 

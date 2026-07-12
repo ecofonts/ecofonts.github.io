@@ -13,7 +13,7 @@ export default defineConfig({
       // Vite discovers them on first use, re-optimizes, and reloads the
       // page — aborting that first import with "Failed to fetch
       // dynamically imported module".
-      include: ['opentype.js', 'jszip', 'clipper-lib'],
+      include: ['opentype.js', 'jszip', 'clipper-lib', 'pdf-lib'],
     },
   },
 });
