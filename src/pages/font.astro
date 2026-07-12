@@ -1,6 +1,5 @@
 ---
-// Landing page intentionally left blank for now.
-// The font optimizer lives at /font.
+import FontOptimizer from "../components/FontOptimizer";
 ---
 
 <html lang="en">
@@ -9,7 +8,9 @@
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Ecofonts</title>
+		<title>Ecofonts — Font Optimizer</title>
 	</head>
-	<body></body>
+	<body>
+		<FontOptimizer client:load />
+	</body>
 </html>
