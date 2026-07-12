@@ -29,7 +29,8 @@ export default function FontOptimizer() {
     }, [preview]);
 
     // Pick up files dropped on the landing page (handed over via IndexedDB)
-    // and start processing them right away.
+    // and preselect them — processing starts when the user clicks Optimize,
+    // so they can pick an Eco Intensity first.
     useEffect(() => {
         let cancelled = false;
         void (async () => {
@@ -37,7 +38,6 @@ export default function FontOptimizer() {
             const handed = await takeFiles();
             if (handed.length > 0 && !cancelled) {
                 setFiles(handed);
-                void runProcess(handed);
             }
         })();
         return () => {

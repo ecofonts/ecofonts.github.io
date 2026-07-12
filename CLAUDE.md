@@ -37,11 +37,12 @@ browser.
     features, Google Fonts import guide, FAQ). Static, with one inline
     script for the drop zone; page-specific scoped styles live in the page.
   - `/font` — [src/pages/font.astro](src/pages/font.astro): mounts the optimizer React component with `client:load`.
-- **Landing → optimizer file handoff:** dropping a font on `/` stashes the
-  `File` in IndexedDB ([src/lib/handoff.ts](src/lib/handoff.ts)) and navigates to `/font`, which
-  takes it on mount and starts processing automatically. IndexedDB (not
-  sessionStorage) because `File` objects survive structured cloning there
-  and fonts can exceed string-storage quotas.
+- **Landing → optimizer file handoff:** dropping files on `/` stashes them
+  in IndexedDB ([src/lib/handoff.ts](src/lib/handoff.ts)) and navigates to `/font`, which takes
+  them on mount and **preselects them without auto-processing** — the user
+  picks an Eco Intensity and clicks Optimize. IndexedDB (not sessionStorage)
+  because `File` objects survive structured cloning there and fonts can
+  exceed string-storage quotas.
 - **Strictly client-side processing.** There are no API routes, server
   endpoints, or serverless functions — all parsing, geometry, and packaging
   runs in the browser. Keep it that way.
