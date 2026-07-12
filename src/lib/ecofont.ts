@@ -84,7 +84,7 @@ export async function processTtf(
             if (contours.length > 0) {
                 const holed = subtractEcoHoles(contours, upem, intensity);
                 // null means "no holes fit" — keep the original curved outline.
-                if (holed) glyphs[i].path = polysToPath(holed);
+                if (holed) glyphs[i].path = polysToPath(holed, upem);
             }
         }
         if ((i + 1) % YIELD_EVERY === 0) {
@@ -248,8 +248,12 @@ function flattenPath(path: Path, segLen: number): ClipPaths {
 }
 
 /** Convert Clipper polygons back to an opentype path in font units. */
-function polysToPath(polys: ClipPaths): Path {
+function polysToPath(polys: ClipPaths, upem: number): Path {
     const path = new Path();
+    // Glyph rendering scales by the PATH's unitsPerEm (default 1000), not
+    // the font's — without this, replaced glyphs in e.g. 2048-upem fonts
+    // draw twice as large as untouched ones.
+    path.unitsPerEm = upem;
     const r = (v: number): number => Math.round(v / SCALE);
     for (const poly of polys) {
         if (poly.length < 3) continue;

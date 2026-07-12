@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import type { Font } from "opentype.js";
 import type { EcoResult, ProgressInfo } from "../lib/pipeline";
 import { validateSelection } from "../lib/limits";
 import "./FontOptimizer.css";
 
-const PREVIEW_TEXT = "Handgloves 0123";
+const DEFAULT_PREVIEW_TEXT = "Handgloves 0123";
+const PREVIEW_FAMILY_ORIGINAL = "eco-preview-original";
+const PREVIEW_FAMILY_ECO = "eco-preview-eco";
 
 export default function FontOptimizer() {
     const [files, setFiles] = useState<File[]>([]);
@@ -17,15 +18,38 @@ export default function FontOptimizer() {
     const [failures, setFailures] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
+    const [previewText, setPreviewText] = useState(DEFAULT_PREVIEW_TEXT);
+    const [previewReady, setPreviewReady] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-    const originalCanvasRef = useRef<HTMLCanvasElement>(null);
-    const ecoCanvasRef = useRef<HTMLCanvasElement>(null);
 
-    const preview = results.find((result) => result.previewProcessed) ?? null;
+    const preview =
+        results.find((result) => result.previewProcessedData && result.previewOriginalData) ??
+        null;
 
+    // Load the before/after fonts as real web fonts: the browser's native
+    // text rendering gives full quality, wrapping and selection for free.
     useEffect(() => {
-        drawPreview(preview?.previewOriginal ?? null, originalCanvasRef.current);
-        drawPreview(preview?.previewProcessed ?? null, ecoCanvasRef.current);
+        setPreviewReady(false);
+        if (!preview?.previewOriginalData || !preview.previewProcessedData) return;
+        const faces: FontFace[] = [];
+        try {
+            for (const [family, data] of [
+                [PREVIEW_FAMILY_ORIGINAL, preview.previewOriginalData],
+                [PREVIEW_FAMILY_ECO, preview.previewProcessedData],
+            ] as const) {
+                const face = new FontFace(family, data);
+                if (face.status === "error") throw new Error("font failed to load");
+                document.fonts.add(face);
+                faces.push(face);
+            }
+            setPreviewReady(true);
+        } catch {
+            faces.forEach((face) => document.fonts.delete(face));
+            faces.length = 0;
+        }
+        return () => {
+            faces.forEach((face) => document.fonts.delete(face));
+        };
     }, [preview]);
 
     // Pick up files dropped on the landing page (handed over via IndexedDB)
@@ -312,15 +336,34 @@ export default function FontOptimizer() {
                         </div>
                     )}
 
-                    {preview && (
+                    {previewReady && (
                         <div className="eco-previews">
+                            <label htmlFor="eco-preview-text">Preview text</label>
+                            <textarea
+                                id="eco-preview-text"
+                                className="eco-preview-input"
+                                rows={2}
+                                value={previewText}
+                                placeholder="Type something to compare…"
+                                onChange={(event) => setPreviewText(event.target.value)}
+                            />
                             <figure>
                                 <figcaption>Original</figcaption>
-                                <canvas ref={originalCanvasRef} width={600} height={110} />
+                                <div
+                                    className="eco-preview-sample"
+                                    style={{ fontFamily: `"${PREVIEW_FAMILY_ORIGINAL}"` }}
+                                >
+                                    {previewText}
+                                </div>
                             </figure>
                             <figure>
                                 <figcaption>Ecofont</figcaption>
-                                <canvas ref={ecoCanvasRef} width={600} height={110} />
+                                <div
+                                    className="eco-preview-sample"
+                                    style={{ fontFamily: `"${PREVIEW_FAMILY_ECO}"` }}
+                                >
+                                    {previewText}
+                                </div>
                             </figure>
                         </div>
                     )}
@@ -330,15 +373,3 @@ export default function FontOptimizer() {
     );
 }
 
-function drawPreview(font: Font | null, canvas: HTMLCanvasElement | null) {
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!font) return;
-    try {
-        font.draw(ctx, PREVIEW_TEXT, 10, 82, 72);
-    } catch {
-        // A preview failure should never block the download.
-    }
-}

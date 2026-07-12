@@ -5,8 +5,7 @@
  * such as `static/`). Browser-agnostic: ArrayBuffer in, ArrayBuffer out.
  */
 import JSZip from "jszip";
-import type { Font } from "opentype.js";
-import { parseFont, processTtf } from "./ecofont";
+import { processTtf } from "./ecofont";
 
 const TTF_RE = /\.ttf$/i;
 const ZIP_RE = /\.zip$/i;
@@ -33,9 +32,14 @@ export interface EcoResult {
     processedFonts: string[];
     /** Per-file failures (those files are passed through unmodified). */
     warnings: string[];
-    /** First processed font, before/after, for rendering a preview. */
-    previewOriginal: Font | null;
-    previewProcessed: Font | null;
+    /**
+     * Raw font bytes of the first processed font, before/after, for the
+     * on-page preview (loaded as real web fonts via the FontFace API).
+     * Null when no browser-renderable font is available (e.g. PDFs whose
+     * embedded fonts are cmap-less subsets or non-sfnt formats).
+     */
+    previewOriginalData: ArrayBuffer | null;
+    previewProcessedData: ArrayBuffer | null;
 }
 
 /**
@@ -62,7 +66,7 @@ async function processSingleTtf(
     intensity: number,
     onProgress?: ProgressCallback,
 ): Promise<EcoResult> {
-    const { buffer, font, droppedVariations } = await processTtf(
+    const { buffer, droppedVariations } = await processTtf(
         data,
         intensity,
         (glyphsDone, glyphsTotal) =>
@@ -74,8 +78,9 @@ async function processSingleTtf(
         data: buffer,
         processedFonts: [fileName],
         warnings: droppedVariations ? [variableFontWarning(fileName)] : [],
-        previewOriginal: safeParse(data),
-        previewProcessed: font,
+        previewOriginalData: data,
+        // The actual output bytes: the preview shows exactly the download.
+        previewProcessedData: buffer,
     };
 }
 
@@ -95,14 +100,14 @@ async function processZip(
 
     const processedFonts: string[] = [];
     const warnings: string[] = [];
-    let previewOriginal: Font | null = null;
-    let previewProcessed: Font | null = null;
+    let previewOriginalData: ArrayBuffer | null = null;
+    let previewProcessedData: ArrayBuffer | null = null;
 
     for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
         const original = await entry.async("arraybuffer");
         try {
-            const { buffer, font, droppedVariations } = await processTtf(
+            const { buffer, droppedVariations } = await processTtf(
                 original,
                 intensity,
                 (done, total) =>
@@ -120,9 +125,9 @@ async function processZip(
             zip.file(entry.name, buffer);
             processedFonts.push(entry.name);
             if (droppedVariations) warnings.push(variableFontWarning(entry.name));
-            if (!previewProcessed) {
-                previewProcessed = font;
-                previewOriginal = safeParse(original);
+            if (!previewProcessedData) {
+                previewProcessedData = buffer;
+                previewOriginalData = original;
             }
         } catch (err) {
             warnings.push(`${entry.name}: ${errorMessage(err)} — kept unmodified`);
@@ -144,8 +149,8 @@ async function processZip(
         data: out,
         processedFonts,
         warnings,
-        previewOriginal,
-        previewProcessed,
+        previewOriginalData,
+        previewProcessedData,
     };
 }
 
@@ -164,23 +169,15 @@ async function processPdfUpload(
         data: result.data,
         processedFonts: result.processedFonts,
         warnings: result.warnings,
-        // PDF-embedded fonts are usually subsets without the tables needed
-        // to render a text preview — the document itself is the preview.
-        previewOriginal: null,
-        previewProcessed: null,
+        // Present when at least one embedded font has the tables browsers
+        // need to render text (subset fonts usually don't — no cmap).
+        previewOriginalData: result.previewOriginalData,
+        previewProcessedData: result.previewProcessedData,
     };
 }
 
 function variableFontWarning(name: string): string {
     return `${name}: variable font — the output contains only the default (static) instance`;
-}
-
-function safeParse(data: ArrayBuffer): Font | null {
-    try {
-        return parseFont(data);
-    } catch {
-        return null;
-    }
 }
 
 function errorMessage(err: unknown): string {

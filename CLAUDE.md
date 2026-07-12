@@ -52,7 +52,14 @@ browser.
 - [src/components/FontOptimizer.tsx](src/components/FontOptimizer.tsx) — UI: drag-and-drop upload zone
   accepting **multiple files** (`.pdf`/`.zip`/`.ttf`), "Eco Intensity"
   slider (1–20%), batch + per-glyph progress, per-file download buttons plus
-  "Download all", before/after canvas preview, per-file failure reporting.
+  "Download all", per-file failure reporting, and a before/after preview:
+  the result's raw font bytes (`previewOriginalData`/`previewProcessedData`
+  on `EcoResult`) are loaded as **real web fonts via the FontFace API** and
+  rendered as plain HTML text — native quality, wrapping and multiline for
+  free; do not reintroduce canvas rendering (blurry, and opentype.js text
+  layout throws on GSUB lookups it doesn't support). PDFs get a preview when
+  an embedded font is browser-renderable (full embeds yes, cmap-less
+  subsets no).
   Files are processed sequentially; one failure never aborts the batch.
   Styled by [src/components/FontOptimizer.css](src/components/FontOptimizer.css) using the shared design
   tokens. Loads the pipeline with a dynamic `import()` on first use — this
