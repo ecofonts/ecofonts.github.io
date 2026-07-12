@@ -22,8 +22,9 @@ import type { Font, Glyph } from "opentype.js";
 
 /** Integer scale factor between font units and Clipper coordinates. */
 const SCALE = 100;
-/** Hole grid spacing, as a fraction of the em size. */
-const HOLE_SPACING_EM = 0.09;
+/** Hole grid spacing, as a fraction of the em size. Smaller spacing means
+ * more, smaller holes for the same target ink removal. */
+const HOLE_SPACING_EM = 0.055;
 /** Minimum wall kept between a hole and the glyph outline (fraction of em). */
 const MIN_WALL_EM = 0.015;
 /** Smallest useful hole radius (fraction of em); tinier holes vanish. */
