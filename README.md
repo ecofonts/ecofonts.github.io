@@ -21,7 +21,7 @@ name and structure:
 | :----- | :------------------------------------------------------------------------------------------------------------------------- |
 | `.ttf` | The font's glyphs get eco holes and the font is re-compiled.                                                                 |
 | `.zip` | Every `.ttf` inside is optimized (nested folders like Google Fonts' `static/` included); other files pass through untouched. |
-| `.pdf` | Every embedded TrueType font in the document is rewritten in place — layout and selectable text stay identical.              |
+| `.pdf` | Every embedded font — TrueType, CFF/OpenType, and legacy Type 1 — is rewritten in place; layout and selectable text stay identical. |
 
 An **Eco Intensity** slider (1–20%) controls how much ink is removed, and it's
 honest: the value maps to the measured share of glyph area actually subtracted.
@@ -42,13 +42,15 @@ npm run preview   # preview the production build
 Routes:
 
 - `/` — landing page with a drag-and-drop zone (drops are handed to the
-  optimizer via IndexedDB and start processing automatically).
+  optimizer via IndexedDB and preselected there — pick an Eco Intensity and
+  click Optimize).
 - `/font` — the optimizer itself.
 
 ## How it works
 
 1. **Parse** — glyph outlines are read with [opentype.js](https://github.com/opentypejs/opentype.js)
-   (or, for PDF-embedded subset fonts, directly from the `glyf` table).
+   (or, for PDF-embedded fonts, directly from the font binary by
+   format-specific parsers).
 2. **Flatten** — Bézier curves are subdivided into polygons in integer font
    units.
 3. **Subtract** — a globally aligned, staggered grid of octagonal holes is
@@ -59,11 +61,14 @@ Routes:
    ZIP archives are rebuilt with [JSZip](https://stuk.github.io/jszip/) and
    PDFs with [pdf-lib](https://pdf-lib.js.org/), preserving structure exactly.
 
-For PDFs, a purpose-built TrueType "glyf surgeon" ([src/lib/glyf.ts](src/lib/glyf.ts))
-rewrites only the `glyf`/`loca` tables and keeps every other byte of the font —
-glyph IDs, widths, cmap, and hinting of untouched glyphs — exactly as the
-document expects, which is what makes subset fonts without cmap/name tables
-work.
+For PDFs, purpose-built binary "surgeons" rewrite only the outline data and
+keep every other byte of the font — glyph IDs, widths, encodings, and hinting
+of untouched glyphs — exactly as the document expects, which is what makes
+subset fonts without cmap/name tables work:
+[src/lib/glyf.ts](src/lib/glyf.ts) patches the `glyf`/`loca` tables of
+TrueType fonts, [src/lib/cff.ts](src/lib/cff.ts) re-emits the Type 2
+charstrings of CFF/OpenType fonts, and [src/lib/type1.ts](src/lib/type1.ts)
+splices new charstrings into decrypted legacy Type 1 fonts.
 
 ## Tech stack
 
