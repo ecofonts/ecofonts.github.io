@@ -245,6 +245,7 @@ const faqSchema = {
 
 		<section id="faq">
 			<h2>FAQ</h2>
+			<p class="section-lede">Everything you might wonder before dropping your first file.</p>
 			<div class="faq-list">
 				<details>
 					<summary>How does this work?</summary>
@@ -603,7 +604,9 @@ const faqSchema = {
 
 		.faq-list {
 			max-width: 720px;
-			margin: 32px auto 0;
+			margin: 0 auto;
+			/* Lets block-size animate to `auto` in the expand transition below. */
+			interpolate-size: allow-keywords;
 		}
 		details {
 			border: 1px solid var(--border);
@@ -611,18 +614,66 @@ const faqSchema = {
 			background: var(--surface);
 			padding: 4px 20px;
 			margin-bottom: 12px;
-			transition: border-color 0.15s;
+			transition:
+				border-color 0.15s,
+				box-shadow 0.15s;
 		}
+		details:hover,
 		details[open] {
 			border-color: var(--green);
 		}
+		details[open] {
+			box-shadow: var(--shadow);
+		}
 		summary {
+			position: relative;
 			cursor: pointer;
 			font-weight: 650;
-			padding: 14px 0;
+			padding: 14px 38px 14px 0;
+			list-style: none;
+			transition: color 0.15s;
 		}
-		summary:hover {
+		summary::-webkit-details-marker {
+			display: none;
+		}
+		summary:hover,
+		details[open] summary {
 			color: var(--green-hover);
+		}
+		/* +/- indicator: two bars; the vertical one rotates flat when open. */
+		summary::before,
+		summary::after {
+			content: "";
+			position: absolute;
+			right: 6px;
+			top: 50%;
+			width: 14px;
+			height: 2px;
+			border-radius: 1px;
+			background: var(--green);
+			transform: translateY(-50%);
+			transition: transform 0.25s ease;
+		}
+		summary::after {
+			transform: translateY(-50%) rotate(90deg);
+		}
+		details[open] summary::after {
+			transform: translateY(-50%) rotate(0deg);
+		}
+		/* Smooth expand where ::details-content is supported; elsewhere the
+		   answer simply toggles instantly, as before. */
+		details::details-content {
+			opacity: 0;
+			block-size: 0;
+			overflow: hidden;
+			transition:
+				content-visibility 0.3s allow-discrete,
+				opacity 0.2s ease,
+				block-size 0.3s ease;
+		}
+		details[open]::details-content {
+			opacity: 1;
+			block-size: auto;
 		}
 		details p {
 			margin: 0 0 18px;
@@ -630,6 +681,13 @@ const faqSchema = {
 		}
 		details a {
 			color: var(--green-hover);
+		}
+		@media (prefers-reduced-motion: reduce) {
+			summary::before,
+			summary::after,
+			details::details-content {
+				transition: none;
+			}
 		}
 	</style>
 </Base>
