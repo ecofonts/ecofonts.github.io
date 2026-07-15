@@ -1,0 +1,74 @@
+---
+// Not-found page. Astro emits it as dist/404.html, which GitHub Pages
+// serves automatically for any unknown URL.
+import Base from "../layouts/Base.astro";
+---
+
+<Base
+	title="Ecofonts — Page not found"
+	description="This page doesn't exist. Head back to Ecofonts and keep printing with less ink."
+>
+	<a slot="nav-actions" class="btn" href="/font">Open the optimizer</a>
+
+	<main class="notfound">
+		<p class="code" aria-hidden="true">404</p>
+		<h1>Page not found</h1>
+		<p class="lede">
+			This page saves 100% ink by not existing. The rest of Ecofonts is one click away.
+		</p>
+		<div class="actions">
+			<a class="btn" href="/">Back to the home page</a>
+			<a class="nav-link" href="/font">Go to the optimizer</a>
+		</div>
+	</main>
+
+	<style>
+		.notfound {
+			position: relative;
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			padding: 64px 24px 72px;
+		}
+		.notfound::before {
+			content: "";
+			position: absolute;
+			inset: -120px 0 auto 0;
+			height: 420px;
+			background: radial-gradient(ellipse 60% 55% at 50% 0%, var(--glow), transparent 70%);
+			pointer-events: none;
+			z-index: -1;
+		}
+		.code {
+			margin: 0;
+			font-size: clamp(5rem, 16vw, 9rem);
+			font-weight: 800;
+			line-height: 1;
+			letter-spacing: -0.04em;
+			background: linear-gradient(120deg, var(--green), var(--green-bright));
+			-webkit-background-clip: text;
+			background-clip: text;
+			color: transparent;
+		}
+		h1 {
+			font-size: clamp(1.7rem, 3.5vw, 2.2rem);
+			letter-spacing: -0.02em;
+			margin: 10px 0 12px;
+		}
+		.lede {
+			color: var(--muted);
+			max-width: 460px;
+			margin: 0 0 32px;
+		}
+		.actions {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: center;
+			gap: 14px 22px;
+		}
+	</style>
+</Base>
