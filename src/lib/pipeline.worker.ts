@@ -37,7 +37,7 @@ ctx.onmessage = async (event: MessageEvent<EcoJobRequest>) => {
             ctx.postMessage({ id, type: "progress", info } satisfies EcoJobResponse),
         );
         // Transfer the result buffers back (zero-copy). Dedupe: the single
-        // .ttf path aliases `data` and the preview buffers to the same
+        // font path aliases `data` and the preview buffers to the same
         // ArrayBuffer, and a repeated entry in a transfer list throws.
         const transfer = [
             ...new Set(

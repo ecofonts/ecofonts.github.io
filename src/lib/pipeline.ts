@@ -1,13 +1,18 @@
 /**
- * File-level pipeline for Ecofonts: routes an upload (single .ttf or a .zip
- * archive) through the geometry engine and repackages the result with the
- * original file names and folder structure intact (including nested folders
- * such as `static/`). Browser-agnostic: ArrayBuffer in, ArrayBuffer out.
+ * File-level pipeline for Ecofonts: routes an upload (a single font, a .zip
+ * archive, or a .pdf) through the geometry engine and repackages the result
+ * with the original file names and folder structure intact (including
+ * nested folders such as `static/`). Fonts are accepted in any container —
+ * plain sfnt (.ttf/.otf) or compressed web font (.woff/.woff2) — and come
+ * back in the container they arrived in. Browser-agnostic: ArrayBuffer in,
+ * ArrayBuffer out.
  */
 import JSZip from "jszip";
 import { processTtf } from "./ecofont";
+import { compressWoff2, decompressWoff2, sniffContainer, wrapWoff } from "./webfont";
+import type { GlyphProgressCallback } from "./ecofont";
 
-const TTF_RE = /\.ttf$/i;
+const FONT_RE = /\.(ttf|otf|woff2?)$/i;
 const ZIP_RE = /\.zip$/i;
 const PDF_RE = /\.pdf$/i;
 
@@ -34,9 +39,10 @@ export interface EcoResult {
     warnings: string[];
     /**
      * Raw font bytes of the first processed font, before/after, for the
-     * on-page preview (loaded as real web fonts via the FontFace API).
-     * Only produced by the .ttf/.zip paths — always null for PDFs, which
-     * show no font preview (the UI offers Print/Download of the document).
+     * on-page preview (loaded as real web fonts via the FontFace API, which
+     * accepts sfnt, WOFF and WOFF2 buffers alike). Only produced by the
+     * font/.zip paths — always null for PDFs, which show no font preview
+     * (the UI offers Print/Download of the document).
      */
     previewOriginalData: ArrayBuffer | null;
     previewProcessedData: ArrayBuffer | null;
@@ -53,20 +59,48 @@ export async function processUpload(
 ): Promise<EcoResult> {
     const intensity = Math.min(Math.max(intensityPercent, 1), 20) / 100;
     if (ZIP_RE.test(fileName)) return processZip(fileName, data, intensity, onProgress);
-    if (TTF_RE.test(fileName)) return processSingleTtf(fileName, data, intensity, onProgress);
+    if (FONT_RE.test(fileName)) return processSingleFont(fileName, data, intensity, onProgress);
     if (PDF_RE.test(fileName)) return processPdfUpload(fileName, data, intensity, onProgress);
     throw new Error(
-        "Unsupported file type — upload a .ttf font, a .zip archive, or a .pdf document.",
+        "Unsupported file type — upload a .pdf document, a .zip archive, or a font (.ttf, .otf, .woff, .woff2).",
     );
 }
 
-async function processSingleTtf(
+/**
+ * Punch eco holes into one font binary, whatever its container: WOFF2 is
+ * unwrapped to a plain sfnt for the geometry engine (WOFF needs no
+ * unwrapping — opentype.js reads the container natively) and the result is
+ * re-wrapped, so the output keeps the container the input arrived in.
+ * Routing is by byte signature, not extension — a mislabeled file keeps
+ * whatever container it really had.
+ */
+async function processFontData(
+    data: ArrayBuffer,
+    intensity: number,
+    onGlyph?: GlyphProgressCallback,
+): Promise<{ buffer: ArrayBuffer; droppedVariations: boolean }> {
+    const container = sniffContainer(data);
+    const input = container === "woff2" ? await decompressWoff2(data) : data;
+    const { buffer, droppedVariations } = await processTtf(input, intensity, onGlyph);
+    if (container === "woff") return { buffer: await wrapWoff(buffer), droppedVariations };
+    if (container === "woff2") return { buffer: await compressWoff2(buffer), droppedVariations };
+    return { buffer, droppedVariations };
+}
+
+function fontMimeType(fileName: string): string {
+    if (/\.otf$/i.test(fileName)) return "font/otf";
+    if (/\.woff$/i.test(fileName)) return "font/woff";
+    if (/\.woff2$/i.test(fileName)) return "font/woff2";
+    return "application/x-font-ttf";
+}
+
+async function processSingleFont(
     fileName: string,
     data: ArrayBuffer,
     intensity: number,
     onProgress?: ProgressCallback,
 ): Promise<EcoResult> {
-    const { buffer, droppedVariations } = await processTtf(
+    const { buffer, droppedVariations } = await processFontData(
         data,
         intensity,
         (glyphsDone, glyphsTotal) =>
@@ -74,7 +108,7 @@ async function processSingleTtf(
     );
     return {
         fileName,
-        mimeType: "application/x-font-ttf",
+        mimeType: fontMimeType(fileName),
         data: buffer,
         processedFonts: [fileName],
         warnings: droppedVariations ? [variableFontWarning(fileName)] : [],
@@ -92,10 +126,10 @@ async function processZip(
 ): Promise<EcoResult> {
     const zip = await JSZip.loadAsync(data);
     const entries = Object.values(zip.files).filter(
-        (entry) => !entry.dir && TTF_RE.test(entry.name),
+        (entry) => !entry.dir && FONT_RE.test(entry.name),
     );
     if (entries.length === 0) {
-        throw new Error("The .zip archive contains no .ttf files.");
+        throw new Error("The .zip archive contains no font files (.ttf, .otf, .woff, .woff2).");
     }
 
     const processedFonts: string[] = [];
@@ -107,7 +141,7 @@ async function processZip(
         const entry = entries[i];
         const original = await entry.async("arraybuffer");
         try {
-            const { buffer, droppedVariations } = await processTtf(
+            const { buffer, droppedVariations } = await processFontData(
                 original,
                 intensity,
                 (done, total) =>

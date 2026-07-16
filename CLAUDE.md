@@ -1,9 +1,10 @@
 # Ecofonts
 
-A 100% client-side font optimizer. Users upload a `.ttf` file, a `.zip` of
-fonts, or a `.pdf` document; Ecofonts subtracts a grid of small vector holes
-("eco holes") from the interior of every glyph so printing uses less ink,
-then returns the modified file for download. For PDFs, every embedded
+A 100% client-side font optimizer. Users upload a font file (`.ttf`, `.otf`,
+`.woff`, `.woff2`), a `.zip` of fonts, or a `.pdf` document; Ecofonts
+subtracts a grid of small vector holes ("eco holes") from the interior of
+every glyph so printing uses less ink, then returns the modified file for
+download. For PDFs, every embedded
 TrueType font in the document is optimized in place. No data ever leaves the
 browser.
 
@@ -50,7 +51,7 @@ browser.
 ### Source layout
 
 - [src/components/FontOptimizer.tsx](src/components/FontOptimizer.tsx) — UI: drag-and-drop upload zone
-  accepting **multiple files** (`.pdf`/`.zip`/`.ttf`), "Eco Intensity"
+  accepting **multiple files** (`.pdf`/`.zip`/`.ttf`/`.otf`/`.woff`/`.woff2`), "Eco Intensity"
   slider (1–20%), batch + per-glyph progress, per-file download buttons plus
   "Download all", per-file failure reporting, and a before/after preview:
   the result's raw font bytes (`previewOriginalData`/`previewProcessedData`
@@ -85,13 +86,24 @@ browser.
 - [src/lib/limits.ts](src/lib/limits.ts) — single source of truth for selection validation,
   used by both the landing drop zone and the optimizer (they once drifted;
   don't duplicate the rules again). Per-selection maximums: 20 PDFs, 100
-  `.ttf`, 5 `.zip`. **The maximums must not appear in regular UI copy** —
-  only in the rejection message when a selection exceeds them.
-- [src/lib/pipeline.ts](src/lib/pipeline.ts) — file-level routing: single `.ttf` vs `.zip`
+  fonts (`.ttf`/`.otf`/`.woff`/`.woff2` combined), 5 `.zip`. **The maximums
+  must not appear in regular UI copy** — only in the rejection message when
+  a selection exceeds them.
+- [src/lib/pipeline.ts](src/lib/pipeline.ts) — file-level routing: single font vs `.zip`
   traversal with JSZip vs `.pdf`. Rewrites zip entries in place so the
   archive keeps its exact folder structure (e.g. Google Fonts `static/`
   folders); non-font files pass through untouched; per-file failures become
-  warnings and the original file is kept.
+  warnings and the original file is kept. Font containers are detected by
+  byte signature (never extension) and preserved on output: `.woff2` is
+  unwrapped/re-wrapped via [src/lib/webfont.ts](src/lib/webfont.ts), `.woff` is parsed directly
+  by opentype.js and re-wrapped on the way out.
+- [src/lib/webfont.ts](src/lib/webfont.ts) — container helpers: signature sniffing, a WOFF
+  (1.0) writer built on the platform's native `CompressionStream`, and WOFF2
+  (de)compression via `woff2-encoder` (self-contained ESM + embedded wasm,
+  dynamically imported so its ~1 MB chunk loads only when a `.woff2`
+  arrives). **Do not swap it for `wawoff2`** — that binding only assigns
+  `module.exports` in its Node branch, so bundled for the browser it exports
+  nothing and its ready-promise hangs forever.
 - [src/lib/ecofont.ts](src/lib/ecofont.ts) — geometry engine: opentype.js parse → flatten
   glyph outlines to polygons → boolean ops with clipper-lib → new paths →
   `font.toArrayBuffer()`. Browser-agnostic (ArrayBuffer in/out, no DOM), so
@@ -151,7 +163,8 @@ area the wall protection preserves). Tuning constants live at the top of
 
 - **opentype.js writes CFF-flavored OpenType** (`OTTO` sfnt), not glyf-based
   TrueType. The output installs and renders everywhere; original filenames
-  and extensions are preserved.
+  and extensions are preserved (`.woff`/`.woff2` inputs get the rewritten
+  sfnt re-wrapped into their original container).
 - **GSUB and variation tables (fvar/avar/cvar/gvar/stat) are dropped**
   before writing. opentype.js throws on GSUB lookup types it can't serialize
   (e.g. type 7 in Arial) and on fvar axis values that overflow its 16.16
@@ -159,6 +172,9 @@ area the wall protection preserves). Tuning constants live at the top of
   invalid anyway since the rewritten outlines are the default instance only.
   Ligatures and variation axes are lost; outlines and metrics are unaffected.
   Variable inputs produce a `warnings` entry in the pipeline result.
+- The `.ttf`/`.zip` paths still go through opentype.js, which parses sfnt
+  and WOFF natively but **not WOFF2** — those bytes must be decompressed
+  first (webfont.ts does this in the pipeline).
 - **Never statically import opentype.js from component code.** Astro's
   prerender pass loads modules in plain Node, where opentype.js resolves as
   CJS and its named ESM imports crash the build (`vite.ssr.noExternal` does

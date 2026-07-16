@@ -21,7 +21,7 @@ const webAppSchema = {
 	offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
 	featureList: [
 		"Optimize every embedded font in a PDF",
-		"Optimize .ttf fonts and .zip font families",
+		"Optimize .ttf, .otf, .woff and .woff2 fonts and .zip font families",
 		"Adjustable ink savings from 1% to 20%",
 		"Runs entirely client-side — no uploads",
 	],
@@ -42,7 +42,7 @@ const faq = [
 	],
 	[
 		"Which files are supported?",
-		"A .pdf document, a single .ttf font, or a .zip archive containing .ttf fonts — including nested folders such as the static/ directory in Google Fonts downloads. Archives come back with their exact structure preserved.",
+		"A .pdf document, a single font in .ttf, .otf, .woff or .woff2 format, or a .zip archive containing fonts — including nested folders such as the static/ directory in Google Fonts downloads. Archives come back with their exact structure preserved, and web fonts come back in the format they arrived in.",
 	],
 	[
 		"How do I use a font from Google Fonts?",
@@ -99,12 +99,12 @@ const faqSchema = {
 			id="dropzone"
 			role="button"
 			tabindex="0"
-			aria-label="Drop .pdf, .zip or .ttf files here, or press Enter to browse"
+			aria-label="Drop .pdf, .zip or font files here, or press Enter to browse"
 		>
 			<img src="/favicon.svg" alt="" width="52" height="52" />
 			<p><strong>Drop your PDFs here</strong></p>
-			<p class="hint">.pdf, .zip or .ttf — multiple files welcome</p>
-			<input id="drop-input" type="file" accept=".pdf,.zip,.ttf" multiple hidden />
+			<p class="hint">.pdf, .zip, .ttf, .otf, .woff or .woff2 — multiple files welcome</p>
+			<input id="drop-input" type="file" accept=".pdf,.zip,.ttf,.otf,.woff,.woff2" multiple hidden />
 		</div>
 		<p id="drop-error" role="alert" hidden></p>
 
@@ -123,8 +123,9 @@ const faqSchema = {
 					<span class="step">1</span>
 					<h3>Upload</h3>
 					<p>
-						Drop a <code>.pdf</code> document — every embedded font gets optimized. A <code
-						>.ttf</code> font or a whole <code>.zip</code> family works just as well.
+						Drop a <code>.pdf</code> document — every embedded font gets optimized. A single
+						font (<code>.ttf</code>, <code>.otf</code>, <code>.woff</code>, <code
+						>.woff2</code>) or a whole <code>.zip</code> family works just as well.
 					</p>
 				</article>
 				<article class="card">
@@ -277,10 +278,12 @@ const faqSchema = {
 				<details>
 					<summary>Which files are supported?</summary>
 					<p>
-						A <code>.pdf</code> document, a single <code>.ttf</code> font, or a <code
-						>.zip</code> archive containing <code>.ttf</code> fonts — including nested
-						folders such as the <code>static/</code> directory in Google Fonts downloads.
-						Archives come back with their exact structure preserved.
+						A <code>.pdf</code> document, a single font in <code>.ttf</code>, <code
+						>.otf</code>, <code>.woff</code> or <code>.woff2</code> format, or a <code
+						>.zip</code> archive containing fonts — including nested folders such as the
+						<code>static/</code> directory in Google Fonts downloads. Archives come back
+						with their exact structure preserved, and web fonts come back in the format
+						they arrived in.
 					</p>
 				</details>
 				<details>
@@ -343,7 +346,8 @@ const faqSchema = {
 			if (validationError || accepted.length === 0) {
 				if (error) {
 					error.textContent =
-						validationError ?? "Please choose .pdf documents, .zip archives, or .ttf fonts.";
+						validationError ??
+						"Please choose .pdf documents, .zip archives, or fonts (.ttf, .otf, .woff, .woff2).";
 					error.removeAttribute("hidden");
 				}
 				return;

@@ -7,11 +7,12 @@
  * they only appear in the error message when a selection exceeds them.
  */
 
-export const ACCEPTED_RE = /\.(ttf|zip|pdf)$/i;
+export const ACCEPTED_RE = /\.(ttf|otf|woff2?|zip|pdf)$/i;
 
 export const MAX_FILES = {
     pdf: 20,
-    ttf: 100,
+    /** All standalone font formats (.ttf, .otf, .woff, .woff2) combined. */
+    font: 100,
     zip: 5,
 } as const;
 
@@ -27,7 +28,7 @@ export interface SelectionResult<T> {
 export function validateSelection<T extends { name: string }>(files: T[]): SelectionResult<T> {
     const accepted: T[] = [];
     const skipped: string[] = [];
-    const counts = { pdf: 0, ttf: 0, zip: 0 };
+    const counts = { pdf: 0, font: 0, zip: 0 };
 
     for (const file of files) {
         const match = ACCEPTED_RE.exec(file.name);
@@ -36,20 +37,21 @@ export function validateSelection<T extends { name: string }>(files: T[]): Selec
             continue;
         }
         accepted.push(file);
-        counts[match[1].toLowerCase() as keyof typeof counts]++;
+        const ext = match[1].toLowerCase();
+        counts[ext === "pdf" || ext === "zip" ? ext : "font"]++;
     }
 
     if (accepted.length === 0) {
         return {
             accepted: [],
             skipped,
-            error: "Please choose .pdf documents, .zip archives, or .ttf fonts.",
+            error: "Please choose .pdf documents, .zip archives, or fonts (.ttf, .otf, .woff, .woff2).",
         };
     }
 
     const over: string[] = [];
     if (counts.pdf > MAX_FILES.pdf) over.push(`${MAX_FILES.pdf} PDF documents`);
-    if (counts.ttf > MAX_FILES.ttf) over.push(`${MAX_FILES.ttf} .ttf fonts`);
+    if (counts.font > MAX_FILES.font) over.push(`${MAX_FILES.font} fonts`);
     if (counts.zip > MAX_FILES.zip) over.push(`${MAX_FILES.zip} .zip archives`);
     if (over.length > 0) {
         return {

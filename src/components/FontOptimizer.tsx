@@ -232,15 +232,15 @@ export default function FontOptimizer() {
             <p className="eco-lede">
                 Upload <code>.pdf</code> documents and every font embedded in them gets tiny
                 ink-saving holes — or optimize <code>.zip</code> font families and{" "}
-                <code>.ttf</code> fonts directly. Everything runs in your browser — files never
-                leave your machine.
+                <code>.ttf</code>, <code>.otf</code>, <code>.woff</code> or <code>.woff2</code>{" "}
+                fonts directly. Everything runs in your browser — files never leave your machine.
             </p>
 
             <div
                 className={dropzoneClass}
                 role="button"
                 tabIndex={0}
-                aria-label="Drop .pdf, .zip or .ttf files here, or press Enter to browse"
+                aria-label="Drop .pdf, .zip or font files here, or press Enter to browse"
                 onClick={() => !busy && inputRef.current?.click()}
                 onKeyDown={(event) => {
                     if (!busy && (event.key === "Enter" || event.key === " ")) {
@@ -271,12 +271,12 @@ export default function FontOptimizer() {
                 <p className="eco-hint">
                     {files.length > 0
                         ? `${totalKb} KB — click to change`
-                        : ".pdf, .zip or .ttf — multiple files welcome"}
+                        : ".pdf, .zip, .ttf, .otf, .woff or .woff2 — multiple files welcome"}
                 </p>
                 <input
                     ref={inputRef}
                     type="file"
-                    accept=".pdf,.zip,.ttf"
+                    accept=".pdf,.zip,.ttf,.otf,.woff,.woff2"
                     multiple
                     hidden
                     onChange={(event) => acceptFiles(event.target.files)}

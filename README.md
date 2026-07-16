@@ -19,8 +19,8 @@ name and structure:
 
 | Input  | What happens                                                                                                               |
 | :----- | :------------------------------------------------------------------------------------------------------------------------- |
-| `.ttf` | The font's glyphs get eco holes and the font is re-compiled.                                                                 |
-| `.zip` | Every `.ttf` inside is optimized (nested folders like Google Fonts' `static/` included); other files pass through untouched. |
+| `.ttf` / `.otf` / `.woff` / `.woff2` | The font's glyphs get eco holes and the font is re-compiled; web fonts come back in the container they arrived in. |
+| `.zip` | Every font inside is optimized (nested folders like Google Fonts' `static/` included); other files pass through untouched. |
 | `.pdf` | Every embedded font — TrueType, CFF/OpenType, and legacy Type 1 — is rewritten in place; layout and selectable text stay identical. |
 
 An **Eco Intensity** slider (1–20%) controls how much ink is removed, and it's
@@ -74,14 +74,16 @@ splices new charstrings into decrypted legacy Type 1 fonts.
 
 - [Astro](https://astro.build) (static output) + [React](https://react.dev)
   via `@astrojs/react` for the optimizer UI
-- `opentype.js` · `clipper-lib` · `jszip` · `pdf-lib` — all loaded on demand,
-  so the initial page stays light
+- `opentype.js` · `clipper-lib` · `jszip` · `pdf-lib` · `woff2-encoder` — all
+  loaded on demand, so the initial page stays light
 - No backend of any kind — the site deploys as plain static files
 
 ## Known limitations
 
-- `.ttf`/`.zip` output is CFF-flavored OpenType (an opentype.js constraint);
-  it installs and renders everywhere and keeps the `.ttf` name.
+- Re-compiled fonts are CFF-flavored OpenType inside (an opentype.js
+  constraint); they install and render everywhere and keep their original
+  name and container (`.woff`/`.woff2` uploads are re-wrapped after
+  processing).
 - Ligatures (GSUB) and variation axes are dropped from re-compiled fonts;
   variable fonts come back as their default instance (upload the family ZIP
   to keep all weights).
