@@ -369,6 +369,41 @@ const socialImage = new URL("/og.png", site);
 				display: none;
 			}
 
+			@media (max-width: 640px) {
+				nav {
+					padding: 0 16px;
+					gap: 12px;
+				}
+				.nav-actions {
+					gap: 10px;
+				}
+				nav .btn {
+					padding: 9px 14px;
+					font-size: 0.9rem;
+					white-space: nowrap;
+				}
+			}
+			@media (max-width: 460px) {
+				/* Logo only; its alt text keeps the accessible name. */
+				nav .brand span {
+					display: none;
+				}
+				nav .btn {
+					padding: 8px 12px;
+					font-size: 0.85rem;
+				}
+				.icon-btn {
+					width: 36px;
+					height: 36px;
+				}
+			}
+			@media (max-width: 340px) {
+				/* The GitHub link is still in the footer. */
+				.nav-actions a.icon-btn {
+					display: none;
+				}
+			}
+
 			footer {
 				border-top: 1px solid var(--border);
 				background: var(--bg-soft);
