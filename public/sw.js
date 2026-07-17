@@ -10,7 +10,7 @@
  *   visit (and one optimization run, which pulls the processing chunks) the
  *   whole app works offline.
  */
-const CACHE = "ecofonts-v2";
+const CACHE = "ecofonts-v3";
 const PRECACHE = ["/", "/font/", "/favicon.svg", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {

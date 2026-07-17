@@ -53,6 +53,47 @@ function encodePng(width, height, rgba) {
     ]);
 }
 
+/** Encode images as a multi-size ICO (32-bit BMP entries, bottom-up BGRA). */
+function encodeIco(images) {
+    const entries = [];
+    const blobs = [];
+    let offset = 6 + images.length * 16;
+    for (const { width, height, data } of images) {
+        const andStride = Math.ceil(width / 32) * 4;
+        const bmp = Buffer.alloc(40 + width * height * 4 + andStride * height);
+        bmp.writeUInt32LE(40, 0); // BITMAPINFOHEADER size
+        bmp.writeInt32LE(width, 4);
+        bmp.writeInt32LE(height * 2, 8); // XOR bitmap + AND mask
+        bmp.writeUInt16LE(1, 12); // planes
+        bmp.writeUInt16LE(32, 14); // bits per pixel
+        for (let y = 0; y < height; y++) {
+            const src = (height - 1 - y) * width * 4;
+            const dst = 40 + y * width * 4;
+            for (let x = 0; x < width; x++) {
+                bmp[dst + x * 4] = data[src + x * 4 + 2];
+                bmp[dst + x * 4 + 1] = data[src + x * 4 + 1];
+                bmp[dst + x * 4 + 2] = data[src + x * 4];
+                bmp[dst + x * 4 + 3] = data[src + x * 4 + 3];
+            }
+        }
+        // AND mask stays all-zero: 32-bit entries carry real alpha.
+        const entry = Buffer.alloc(16);
+        entry[0] = width === 256 ? 0 : width;
+        entry[1] = height === 256 ? 0 : height;
+        entry.writeUInt16LE(1, 4); // planes
+        entry.writeUInt16LE(32, 6); // bits per pixel
+        entry.writeUInt32LE(bmp.length, 8);
+        entry.writeUInt32LE(offset, 12);
+        entries.push(entry);
+        blobs.push(bmp);
+        offset += bmp.length;
+    }
+    const dir = Buffer.alloc(6);
+    dir.writeUInt16LE(1, 2); // type: icon
+    dir.writeUInt16LE(images.length, 4);
+    return Buffer.concat([dir, ...entries, ...blobs]);
+}
+
 // ------------------------------------------------------------------ geometry
 
 /** Parse an SVG path `d` (absolute M/L/C/Z) into flattened contours. */
@@ -302,6 +343,18 @@ for (const size of [192, 512]) {
     const img = new Image(512, 512, DARK_BG);
     drawLogo(img, 256, 256, 300);
     img.save("public/icons/icon-maskable-512.png");
+}
+
+// Classic favicon.ico — crawlers (Google's favicon bot included) and legacy
+// browsers request /favicon.ico directly, bypassing the <link> tags.
+{
+    const images = [16, 32, 48].map((size) => {
+        const img = new Image(size, size);
+        drawLogo(img, size / 2, size / 2, size * 0.9);
+        return img;
+    });
+    writeFileSync("public/favicon.ico", encodeIco(images));
+    console.log("wrote public/favicon.ico");
 }
 
 // Apple touch icon (opaque, slightly padded).

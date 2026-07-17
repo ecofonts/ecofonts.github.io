@@ -5,6 +5,15 @@ import Base from "../layouts/Base.astro";
 
 const site = "https://ecofonts.github.io";
 
+// WebSite structured data names the site in Google results — without it,
+// github.io subdomains are shown under the site name "GitHub".
+const websiteSchema = {
+	"@context": "https://schema.org",
+	"@type": "WebSite",
+	name: "Ecofonts",
+	url: `${site}/`,
+};
+
 // Structured data for rich search results. The FAQ entries must mirror the
 // visible FAQ section below — search engines penalize mismatches.
 const webAppSchema = {
@@ -83,6 +92,7 @@ const faqSchema = {
 >
 	<a slot="nav-actions" class="btn" href="/font">Open the optimizer</a>
 
+	<script type="application/ld+json" set:html={JSON.stringify(websiteSchema)} is:inline />
 	<script type="application/ld+json" set:html={JSON.stringify(webAppSchema)} is:inline />
 	<script type="application/ld+json" set:html={JSON.stringify(faqSchema)} is:inline />
 
