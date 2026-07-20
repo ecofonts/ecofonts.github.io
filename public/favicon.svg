@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="2000" height="2000">
 <defs>
 <clipPath id="roundedCorners">
-<rect x="0" y="0" width="2000" height="2000" rx="90" ry="90"/>
+<rect x="0" y="0" width="2000" height="2000" rx="220" ry="220"/>
 </clipPath>
 </defs>
 <g clip-path="url(#roundedCorners)">
