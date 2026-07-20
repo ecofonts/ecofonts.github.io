@@ -490,7 +490,23 @@ export async function ecoProcessType1(
         }
         for (;;) {
             const dup = nextToken(plain, pos);
-            if (!dup || dup.text !== "dup") break;
+            if (!dup) break;
+            if (dup.text !== "dup") {
+                // Entries are separated by a put procedure (NP, "|",
+                // "noaccess put", …) — skip it. Anything that closes the
+                // array or opens the next dict entry ends the section.
+                if (
+                    dup.text.startsWith("/") ||
+                    dup.text === "ND" ||
+                    dup.text === "|-" ||
+                    dup.text === "def" ||
+                    dup.text === "end"
+                ) {
+                    break;
+                }
+                pos = dup.end;
+                continue;
+            }
             const idxTok = nextToken(plain, dup.end);
             const lenTok = idxTok && nextToken(plain, idxTok.end);
             const rdTok = lenTok && nextToken(plain, lenTok.end);
