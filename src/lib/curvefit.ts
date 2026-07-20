@@ -68,6 +68,7 @@ export function fitContour(points: Pt[], tolerance: number): FittedContour {
         open.push(pts[0]);
         const seam = norm(sub(pts[1], pts[n - 1]));
         fitCubic(open, 0, open.length - 1, seam, mul(seam, -1), tolerance, segs);
+        return { start: pts[0], segs };
     } else {
         // Split the loop into open runs between consecutive corners. The run
         // always advances at least one step, so a single-corner contour
@@ -90,7 +91,10 @@ export function fitContour(points: Pt[], tolerance: number): FittedContour {
             }
         }
     }
-    return { start: pts[0], segs };
+    // The runs are walked starting at the first corner, so the segment chain
+    // begins there — not at pts[0], which usually lands mid-curve. Returning
+    // pts[0] would draw a spurious chord from it to the first corner.
+    return { start: pts[corners[0]], segs };
 }
 
 /** Drop consecutive duplicate points (and a closing point equal to the start). */
