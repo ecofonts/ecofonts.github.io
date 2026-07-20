@@ -26,7 +26,7 @@ function trackOptimize(file: File, intensity: number) {
 
 export default function FontOptimizer() {
     const [files, setFiles] = useState<File[]>([]);
-    const [intensity, setIntensity] = useState(10);
+    const [intensity, setIntensity] = useState(15);
     const [busy, setBusy] = useState(false);
     const [dragOver, setDragOver] = useState(false);
     const [batch, setBatch] = useState<{ index: number; total: number } | null>(null);
