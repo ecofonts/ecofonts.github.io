@@ -191,31 +191,6 @@ const faqSchema = {
 			</div>
 		</section>
 
-		<section id="google-fonts">
-			<h2>Using a font from Google Fonts</h2>
-			<p class="section-lede">
-				No integration needed — Google Fonts already gives you exactly what Ecofonts eats.
-			</p>
-			<ol class="gf-steps">
-				<li>
-					<strong>Find your font</strong> on <a
-						href="https://fonts.google.com"
-						target="_blank"
-						rel="noopener noreferrer">fonts.google.com</a
-					> and open its page.
-				</li>
-				<li>
-					<strong>Click “Get font”, then “Download all”.</strong> You'll get a <code>.zip</code> with
-					every weight and style of the family.
-				</li>
-				<li>
-					<strong>Drop that <code>.zip</code> right here.</strong> Ecofonts optimizes each font
-					inside — including the fixed-weight copies in the <code>static/</code> folder — and
-					returns the archive with its structure intact, ready to install.
-				</li>
-			</ol>
-		</section>
-
 		<section id="mission" class="alt">
 			<h2>The Mission</h2>
 			<p class="section-lede">
@@ -300,8 +275,9 @@ const faqSchema = {
 					<summary>How do I use a font from Google Fonts?</summary>
 					<p>
 						Download the family from fonts.google.com (“Get font” → “Download all”) and drop
-						the resulting <code>.zip</code> here — see the <a href="#google-fonts"
-						>step-by-step guide</a> above.
+						the resulting <code>.zip</code> here. Ecofonts optimizes every font inside —
+						including the fixed-weight copies in the <code>static/</code> folder — and returns
+						the archive with its structure intact, ready to install.
 					</p>
 				</details>
 				<details>
@@ -565,47 +541,6 @@ const faqSchema = {
 			color: #04160c;
 			font-weight: 800;
 			margin-bottom: 14px;
-		}
-
-		.gf-steps {
-			max-width: 640px;
-			margin: 0 auto;
-			padding: 0;
-			list-style: none;
-			counter-reset: gf;
-		}
-		.gf-steps li {
-			counter-increment: gf;
-			position: relative;
-			padding: 18px 20px 18px 66px;
-			margin-bottom: 14px;
-			background: var(--surface);
-			border: 1px solid var(--border);
-			border-radius: 16px;
-			color: var(--muted);
-		}
-		.gf-steps li strong {
-			color: var(--ink);
-		}
-		.gf-steps li::before {
-			content: counter(gf);
-			position: absolute;
-			left: 18px;
-			top: 50%;
-			transform: translateY(-50%);
-			width: 32px;
-			height: 32px;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			border-radius: 50%;
-			background: linear-gradient(135deg, var(--green), var(--green-bright));
-			color: #04160c;
-			font-weight: 800;
-		}
-		.gf-steps a {
-			color: var(--green-hover);
-			font-weight: 600;
 		}
 
 		.mission-close {
