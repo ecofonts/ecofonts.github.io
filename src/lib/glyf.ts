@@ -14,8 +14,14 @@
  */
 import type { Path as ClipPath, Paths as ClipPaths } from "clipper-lib";
 import { SCALE, subtractEcoHoles } from "./ecofont";
+import { cubicToQuadratics, fitContour } from "./curvefit";
+import type { Pt } from "./curvefit";
 
 const YIELD_EVERY = 24;
+/** Bézier refit tolerance (fraction of em); mirrors FIT_TOLERANCE_EM in
+ * ecofont.ts. Keeps the rewritten glyph within a sub-pixel of the clipped
+ * shape while collapsing flattened silhouettes back to compact curves. */
+const FIT_TOLERANCE_EM = 0.0016;
 
 export interface EcoTrueTypeResult {
     buffer: ArrayBuffer;
@@ -145,7 +151,7 @@ export async function ecoProcessTrueType(
             if (contours && contours.length > 0) {
                 const holed = subtractEcoHoles(contours, upem, intensity);
                 if (holed && holed.length > 0) {
-                    const serialized = serializeSimpleGlyph(holed);
+                    const serialized = serializeSimpleGlyph(holed, upem);
                     if (serialized) {
                         replacement = serialized.bytes;
                         maxPoints = Math.max(maxPoints, serialized.pointCount);
@@ -462,22 +468,51 @@ function flattenQuadContour(
     return out;
 }
 
-/** Serialize Clipper polygons as one simple glyph (all points on-curve). */
+/**
+ * Serialize Clipper polygons as one simple glyph. Bézier curves are refitted
+ * onto the flattened polylines (see curvefit.ts) and emitted as TrueType
+ * quadratics (on/off-curve points), so the rewritten glyph stays compact.
+ * Hole octagons and glyph cusps survive as sharp corners.
+ */
 function serializeSimpleGlyph(
     polys: ClipPaths,
+    upem: number,
 ): { bytes: Uint8Array; pointCount: number; contourCount: number } | null {
-    const clamp = (v: number): number => Math.max(-32768, Math.min(32767, Math.round(v / SCALE)));
-    const contours: { x: number; y: number }[][] = [];
+    const tolerance = upem * FIT_TOLERANCE_EM;
+    const clamp = (v: number): number => Math.max(-32768, Math.min(32767, Math.round(v)));
+    const contours: { x: number; y: number; on: boolean }[][] = [];
     for (const poly of polys) {
-        const contour: { x: number; y: number }[] = [];
-        for (const pt of poly) {
-            const x = clamp(pt.X);
-            const y = clamp(pt.Y);
+        if (poly.length < 3) continue;
+        const pts: Pt[] = poly.map((p) => ({ x: p.X / SCALE, y: p.Y / SCALE }));
+        const { start, segs } = fitContour(pts, tolerance);
+
+        const contour: { x: number; y: number; on: boolean }[] = [];
+        const push = (x: number, y: number, on: boolean): void => {
+            const cx = clamp(x);
+            const cy = clamp(y);
             const last = contour[contour.length - 1];
-            if (!last || last.x !== x || last.y !== y) contour.push({ x, y });
+            if (last && last.on && on && last.x === cx && last.y === cy) return;
+            contour.push({ x: cx, y: cy, on });
+        };
+        push(start.x, start.y, true);
+        let prev: Pt = start;
+        for (const seg of segs) {
+            if (seg.type === "line") {
+                push(seg.end.x, seg.end.y, true);
+            } else {
+                for (const q of cubicToQuadratics(prev, seg.c1, seg.c2, seg.end, tolerance)) {
+                    push(q.control.x, q.control.y, false);
+                    push(q.end.x, q.end.y, true);
+                }
+            }
+            prev = seg.end;
         }
+        // Drop a trailing on-curve point identical to the start (glyf closes
+        // the contour implicitly).
         while (
             contour.length > 1 &&
+            contour[contour.length - 1].on &&
+            contour[0].on &&
             contour[0].x === contour[contour.length - 1].x &&
             contour[0].y === contour[contour.length - 1].y
         ) {
@@ -515,7 +550,7 @@ function serializeSimpleGlyph(
     }
     w.uint16(0); // no hinting instructions
 
-    // Flags + deltas with short-vector compression (all points on-curve).
+    // Flags + deltas with short-vector compression.
     const flags: number[] = [];
     const xData = new ByteWriter();
     const yData = new ByteWriter();
@@ -527,7 +562,7 @@ function serializeSimpleGlyph(
             const dy = pt.y - py;
             px = pt.x;
             py = pt.y;
-            let flag = 0x01; // ON_CURVE_POINT
+            let flag = pt.on ? 0x01 : 0x00; // ON_CURVE_POINT
             if (dx === 0) {
                 flag |= 0x10; // X_IS_SAME
             } else if (dx >= -255 && dx <= 255) {

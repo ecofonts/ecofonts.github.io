@@ -19,6 +19,8 @@ import ClipperLib from "clipper-lib";
 import type { Path as ClipPath, Paths as ClipPaths } from "clipper-lib";
 import { parse, Path } from "opentype.js";
 import type { Font, Glyph } from "opentype.js";
+import { fitContour } from "./curvefit";
+import type { Pt } from "./curvefit";
 
 /** Integer scale factor between font units and Clipper coordinates. */
 export const SCALE = 100;
@@ -31,6 +33,9 @@ const MIN_WALL_EM = 0.015;
 const MIN_RADIUS_EM = 0.004;
 /** Vertices per hole polygon (octagons approximate circles well enough). */
 const CIRCLE_SEGMENTS = 8;
+/** Max deviation (fraction of em) allowed when refitting Béziers onto the
+ * clipped polylines — sub-pixel at any real print size, keeps files small. */
+const FIT_TOLERANCE_EM = 0.0016;
 /** Glyphs processed between yields back to the event loop. */
 const YIELD_EVERY = 24;
 /** Safety cap on holes generated for a single glyph (icon fonts etc.). */
@@ -247,19 +252,30 @@ function flattenPath(path: Path, segLen: number): ClipPaths {
     return contours;
 }
 
-/** Convert Clipper polygons back to an opentype path in font units. */
+/**
+ * Convert Clipper polygons back to an opentype path in font units, refitting
+ * Bézier curves onto the flattened polylines so the output stays compact
+ * (see curvefit.ts). Holes and cusps are preserved as sharp corners.
+ */
 function polysToPath(polys: ClipPaths, upem: number): Path {
     const path = new Path();
     // Glyph rendering scales by the PATH's unitsPerEm (default 1000), not
     // the font's — without this, replaced glyphs in e.g. 2048-upem fonts
     // draw twice as large as untouched ones.
     path.unitsPerEm = upem;
-    const r = (v: number): number => Math.round(v / SCALE);
+    const tolerance = upem * FIT_TOLERANCE_EM;
+    const R = (v: number): number => Math.round(v);
     for (const poly of polys) {
         if (poly.length < 3) continue;
-        path.moveTo(r(poly[0].X), r(poly[0].Y));
-        for (let i = 1; i < poly.length; i++) {
-            path.lineTo(r(poly[i].X), r(poly[i].Y));
+        const pts: Pt[] = poly.map((p) => ({ x: p.X / SCALE, y: p.Y / SCALE }));
+        const { start, segs } = fitContour(pts, tolerance);
+        path.moveTo(R(start.x), R(start.y));
+        for (const seg of segs) {
+            if (seg.type === "line") {
+                path.lineTo(R(seg.end.x), R(seg.end.y));
+            } else {
+                path.curveTo(R(seg.c1.x), R(seg.c1.y), R(seg.c2.x), R(seg.c2.y), R(seg.end.x), R(seg.end.y));
+            }
         }
         path.closePath();
     }
