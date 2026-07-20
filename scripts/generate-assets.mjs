@@ -13,7 +13,6 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import zlib from "node:zlib";
 import opentype from "opentype.js";
 
-const GREEN = [0x01, 0xbf, 0x63];
 const GREEN_BRIGHT = [0x00, 0xd9, 0x7a];
 const DARK_BG = [0x0a, 0x10, 0x0d];
 const WHITE = [0xe9, 0xf4, 0xee];
@@ -201,18 +200,6 @@ function flattenFontPath(path) {
     return contours;
 }
 
-function bboxOf(contours) {
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const contour of contours)
-        for (const [x, y] of contour) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-        }
-    return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
-}
-
 function transform(contours, fn) {
     return contours.map((contour) => contour.map(fn));
 }
@@ -310,18 +297,53 @@ class Image {
 // ----------------------------------------------------------------- the assets
 
 const svg = readFileSync("public/favicon.svg", "utf8");
-const pathData = [...svg.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]);
-const logoGreen = parseSvgPath(pathData[0]);
-const logoBbox = bboxOf(logoGreen);
+const CANVAS = parseFloat(svg.match(/<svg[^>]* width="([\d.]+)"/)[1]);
+const CORNER_RADIUS = parseFloat(svg.match(/<rect[^>]* rx="([\d.]+)"/)[1]);
+const layers = [
+    ...svg.matchAll(
+        /<path\s+d="([^"]+)"\s+fill="(#[0-9a-fA-F]{6})"(?:\s+transform="translate\(([-\d.]+),([-\d.]+)\)")?/g,
+    ),
+].map((m) => {
+    const dx = parseFloat(m[3] ?? "0");
+    const dy = parseFloat(m[4] ?? "0");
+    return {
+        contours: transform(parseSvgPath(m[1]), ([x, y]) => [x + dx, y + dy]),
+        color: [1, 3, 5].map((i) => parseInt(m[2].slice(i, i + 2), 16)),
+    };
+});
+const BADGE_BG = layers[0].color;
 
-/** Place the logo (green path, even-odd fill) centered in a box. */
-function drawLogo(img, cx, cy, size, color = GREEN) {
-    const scale = size / Math.max(logoBbox.width, logoBbox.height);
-    const placed = transform(logoGreen, ([x, y]) => [
-        cx + (x - logoBbox.minX - logoBbox.width / 2) * scale,
-        cy + (y - logoBbox.minY - logoBbox.height / 2) * scale,
-    ]);
-    img.fill(placed, color, "evenodd");
+/** Rounded-rect contour matching the SVG's corner clip. */
+function roundedSquare(size, radius) {
+    const SEG = 12;
+    const contour = [];
+    const corners = [
+        [size - radius, radius, -Math.PI / 2],
+        [size - radius, size - radius, 0],
+        [radius, size - radius, Math.PI / 2],
+        [radius, radius, Math.PI],
+    ];
+    for (const [cx, cy, start] of corners)
+        for (let s = 0; s <= SEG; s++) {
+            const a = start + ((Math.PI / 2) * s) / SEG;
+            contour.push([cx + radius * Math.cos(a), cy + radius * Math.sin(a)]);
+        }
+    return [contour];
+}
+
+/**
+ * Place the full badge (all layers, painter's order) centered in a box.
+ * The background layer is drawn as a rounded square, matching the SVG's
+ * corner clip; `rounded: false` keeps it square for full-bleed uses where
+ * the platform applies its own mask (maskable icon, apple-touch-icon).
+ */
+function drawLogo(img, cx, cy, size, { rounded = true } = {}) {
+    const scale = size / CANVAS;
+    const place = ([x, y]) => [cx + (x - CANVAS / 2) * scale, cy + (y - CANVAS / 2) * scale];
+    const [background, ...art] = layers;
+    const bgContours = rounded ? roundedSquare(CANVAS, CORNER_RADIUS) : background.contours;
+    img.fill(transform(bgContours, place), background.color, "nonzero");
+    for (const layer of art) img.fill(transform(layer.contours, place), layer.color, "nonzero");
 }
 
 function drawText(img, font, text, x, baseline, size, color) {
@@ -340,8 +362,8 @@ for (const size of [192, 512]) {
 
 // Maskable icon: full-bleed background, logo inside the 80% safe zone.
 {
-    const img = new Image(512, 512, DARK_BG);
-    drawLogo(img, 256, 256, 300);
+    const img = new Image(512, 512, BADGE_BG);
+    drawLogo(img, 256, 256, 410);
     img.save("public/icons/icon-maskable-512.png");
 }
 
@@ -357,10 +379,10 @@ for (const size of [192, 512]) {
     console.log("wrote public/favicon.ico");
 }
 
-// Apple touch icon (opaque, slightly padded).
+// Apple touch icon (opaque, full bleed — iOS rounds the corners itself).
 {
-    const img = new Image(180, 180, DARK_BG);
-    drawLogo(img, 90, 90, 120);
+    const img = new Image(180, 180, BADGE_BG);
+    drawLogo(img, 90, 90, 180, { rounded: false });
     img.save("public/apple-touch-icon.png");
 }
 
