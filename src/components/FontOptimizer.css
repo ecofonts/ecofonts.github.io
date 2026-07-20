@@ -230,6 +230,14 @@
     gap: 10px;
     flex: none;
 }
+/* Mobile browsers can't print a PDF blob from an iframe (Android has no
+   inline PDF viewer; iOS Safari's contentWindow.print() prints blank),
+   so Print is desktop-only — mobile users still have Download. */
+@media (hover: none) and (pointer: coarse) {
+    .eco-print {
+        display: none;
+    }
+}
 .eco-warnings {
     list-style: none;
     margin: 14px 0 0;

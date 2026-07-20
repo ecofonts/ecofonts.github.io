@@ -389,7 +389,7 @@ export default function FontOptimizer() {
                                     {result.mimeType === "application/pdf" && (
                                         <button
                                             type="button"
-                                            className="eco-btn small secondary"
+                                            className="eco-btn small secondary eco-print"
                                             onClick={() => printResult(result)}
                                         >
                                             Print
