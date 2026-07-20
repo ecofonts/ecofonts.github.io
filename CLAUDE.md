@@ -4,9 +4,10 @@ A 100% client-side font optimizer. Users upload a font file (`.ttf`, `.otf`,
 `.woff`, `.woff2`), a `.zip` of fonts, or a `.pdf` document; Ecofonts
 subtracts a grid of small vector holes ("eco holes") from the interior of
 every glyph so printing uses less ink, then returns the modified file for
-download. For PDFs, every embedded
-TrueType font in the document is optimized in place. No data ever leaves the
-browser.
+download. For PDFs, every embedded font in the document is optimized in
+place; fonts the document references without embedding (typical of Word
+exports) are optimized from the user's installed copy via the Local Font
+Access API where available. No data ever leaves the browser.
 
 ## Architecture
 
@@ -78,7 +79,11 @@ browser.
   heavy glyphs never jank the UI. The client lazily spawns the worker,
   multiplexes jobs by id (progress stream + final done/error message), and
   falls back to running the pipeline inline on the main thread when module
-  workers are unavailable. The worker transfers result buffers back
+  workers are unavailable. When a PDF needs installed fonts, the worker
+  sends a `need-local-fonts` message and suspends the job until the client
+  answers with the bytes (the Local Font Access API is main-thread only) —
+  the client **always** replies, even with an empty result, or the job would
+  hang. The worker transfers result buffers back
   **deduped** — the `.ttf` path aliases the output and preview buffers to
   the same ArrayBuffer, and a duplicate in a transfer list throws.
   `vite.worker.format` is `'es'` (astro.config) so the worker keeps pdf-lib
@@ -98,10 +103,12 @@ browser.
   unwrapped/re-wrapped via [src/lib/webfont.ts](src/lib/webfont.ts), `.woff` is parsed directly
   by opentype.js and re-wrapped on the way out.
 - [src/lib/webfont.ts](src/lib/webfont.ts) — container helpers: signature sniffing, a WOFF
-  (1.0) writer built on the platform's native `CompressionStream`, and WOFF2
+  (1.0) writer built on the platform's native `CompressionStream`, WOFF2
   (de)compression via `woff2-encoder` (self-contained ESM + embedded wasm,
   dynamically imported so its ~1 MB chunk loads only when a `.woff2`
-  arrives). **Do not swap it for `wawoff2`** — that binding only assigns
+  arrives), and `extractTtcFace` (pulls one face out of a TrueType
+  Collection by PostScript name — the Local Font Access API returns whole
+  `.ttc` files for collection-hosted system fonts). **Do not swap it for `wawoff2`** — that binding only assigns
   `module.exports` in its Node branch, so bundled for the browser it exports
   nothing and its ready-promise hangs forever.
 - [src/lib/ecofont.ts](src/lib/ecofont.ts) — geometry engine: opentype.js parse → flatten
@@ -115,7 +122,11 @@ browser.
   holes, and reassembles the sfnt rewriting **only** glyf/loca (+ minimal
   head/maxp patches). Untouched glyphs keep their original bytes including
   hinting; glyph IDs and widths are preserved exactly, which the PDF's
-  CID-to-GID mapping depends on.
+  CID-to-GID mapping depends on. Takes an optional `keepGlyphs` set (used
+  when embedding installed fonts): glyphs outside it are written empty —
+  ids and hmtx metrics survive, outlines vanish — after expanding the set
+  over composite components. Also exports `mapUnicodesToGlyphs` (cmap
+  formats 4/12) for building such sets.
 - [src/lib/cff.ts](src/lib/cff.ts) — CFF "charstring surgeon" for PDF-embedded CFF fonts
   (`FontFile3`, subtypes Type1C/CIDFontType0C/OpenType): interprets Type 2
   charstrings (subrs, hintmask, flex) into contours, punches holes, re-emits
@@ -137,7 +148,25 @@ browser.
   surgeon (sniffing bytes, not trusting the declared subtype), re-embeds via
   `context.flateStream` (+ `Length1` for TrueType, `Length1/2/3` for Type 1,
   preserved `Subtype` for FontFile3), and saves. Nothing else in the
-  document is modified.
+  document is modified. Descriptors with **no** font program (Word exports
+  leave system fonts out) are filled from the user's installed fonts when a
+  `LocalFontResolver` is supplied: only for descriptors whose referencing
+  font dicts are all simple `TrueType` (CID fonts depend on the original
+  file's glyph order), matched by PostScript name, TTC faces extracted,
+  optimized by the matching surgeon and attached as `FontFile2` (or
+  `FontFile3`/`OpenType` for OTTO faces). When every referencing dict uses
+  plain `WinAnsiEncoding` and the face is non-symbolic, the embedded copy
+  is subset via `keepGlyphs` (all cp1252-reachable glyphs, ~220 of
+  thousands); any other encoding embeds the full face — never guess a
+  char→glyph mapping we can't reproduce. Unmatched or unsupported
+  non-embedded fonts become warnings, not errors.
+- [src/lib/localFonts.ts](src/lib/localFonts.ts) — main-thread wrapper for the Local Font
+  Access API (Chromium-only). `requestLocalFonts()` **must be called from
+  the Optimize click handler** — the permission prompt needs the click's
+  transient user activation — and returns a `LocalFontResolver` (or null:
+  unsupported browser / permission denied, both non-fatal). The resolver is
+  handed through the worker protocol and called only when a PDF actually
+  references non-embedded fonts.
 - [src/lib/clipper-lib.d.ts](src/lib/clipper-lib.d.ts) — hand-written types for the parts of
   `clipper-lib` we use (the package ships none).
 
@@ -187,7 +216,12 @@ area the wall protection preserves). Tuning constants live at the top of
   approach.
 - **PDFs:** all embedded font formats are rewritten — `FontFile2`
   (TrueType), `FontFile3` (CFF/OpenType), and `FontFile` (legacy Type 1).
-  Text drawn with non-embedded viewer fonts cannot be optimized. Per-glyph
+  Text drawn with non-embedded viewer fonts is optimized by embedding the
+  user's installed copy (Chrome/Edge only — Local Font Access API, with a
+  one-time permission prompt on Optimize when the batch has PDFs); in other
+  browsers, when permission is denied, when no installed font matches the
+  PostScript name, or for non-embedded CID/Type 1 fonts, that text stays
+  unoptimized and a warning explains why. Per-glyph
   and per-font failures degrade gracefully (original bytes kept, warning
   shown). Encrypted PDFs are rejected by pdf-lib at load time. The
   `.ttf`/`.zip` paths still go through opentype.js (CFF output); the PDF

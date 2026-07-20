@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { EcoResult, ProgressInfo } from "../lib/pipeline";
+import type { EcoResult, LocalFontResolver, ProgressInfo } from "../lib/pipeline";
 import { validateSelection } from "../lib/limits";
 import "./FontOptimizer.css";
 
@@ -125,6 +125,16 @@ export default function FontOptimizer() {
         const collected: EcoResult[] = [];
         const failed: string[] = [];
         try {
+            // PDFs often reference fonts without embedding them (Word
+            // exports leave system fonts out); with permission, the pipeline
+            // embeds an optimized copy of the user's installed font instead.
+            // Must be requested here, while the Optimize click's user
+            // activation is still live, or the permission prompt is blocked.
+            let resolveLocalFonts: LocalFontResolver | undefined;
+            if (targets.some((target) => /\.pdf$/i.test(target.name))) {
+                const { requestLocalFonts } = await import("../lib/localFonts");
+                resolveLocalFonts = (await requestLocalFonts()) ?? undefined;
+            }
             // Loaded on demand: keeps the processing machinery out of the
             // initial bundle and out of the server-side prerender pass. The
             // heavy work itself runs in a Web Worker, so it continues at
@@ -137,7 +147,14 @@ export default function FontOptimizer() {
                     setBatch({ index: i + 1, total: targets.length });
                     setProgress(null);
                     try {
-                        collected.push(await processUploadInWorker(target, intensity, setProgress));
+                        collected.push(
+                            await processUploadInWorker(
+                                target,
+                                intensity,
+                                setProgress,
+                                resolveLocalFonts,
+                            ),
+                        );
                     } catch (err) {
                         failed.push(
                             `${target.name}: ${err instanceof Error ? err.message : String(err)}`,

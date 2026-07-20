@@ -123,3 +123,88 @@ async function deflate(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
     const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate"));
     return new Uint8Array(await new Response(stream).arrayBuffer());
 }
+
+/**
+ * Extract one face from a TrueType Collection ('ttcf') as a standalone
+ * sfnt, selected by PostScript name. The Local Font Access API returns the
+ * underlying font file, which for several system fonts (Cambria, Meiryo,
+ * MS Gothic, …) is a collection, but a PDF font stream must hold a single
+ * face. Table bytes are copied verbatim — only the directory offsets are
+ * rewritten. Returns null when no face carries the requested name.
+ */
+export function extractTtcFace(data: ArrayBuffer, postscriptName: string): ArrayBuffer | null {
+    const view = new DataView(data);
+    if (data.byteLength < 12 || view.getUint32(0) !== 0x74746366) return null; // 'ttcf'
+    const numFonts = view.getUint32(8);
+    for (let i = 0; i < numFonts; i++) {
+        const base = view.getUint32(12 + i * 4);
+        if (facePostscriptName(view, base) === postscriptName) {
+            return rebuildFace(data, view, base);
+        }
+    }
+    return null;
+}
+
+/** Read nameID 6 (PostScript name) from the face's `name` table. */
+function facePostscriptName(view: DataView, base: number): string | null {
+    const numTables = view.getUint16(base + 4);
+    for (let i = 0; i < numTables; i++) {
+        const p = base + 12 + i * 16;
+        if (view.getUint32(p) !== 0x6e616d65) continue; // 'name'
+        const table = view.getUint32(p + 8);
+        const count = view.getUint16(table + 2);
+        const strings = table + view.getUint16(table + 4);
+        let macName: string | null = null;
+        for (let r = 0; r < count; r++) {
+            const rec = table + 6 + r * 12;
+            if (view.getUint16(rec + 6) !== 6) continue; // nameID 6
+            const platform = view.getUint16(rec);
+            const length = view.getUint16(rec + 8);
+            const start = strings + view.getUint16(rec + 10);
+            if (platform === 3) {
+                // Windows: UTF-16BE (PostScript names are ASCII in practice).
+                let s = "";
+                for (let j = 0; j + 1 < length; j += 2)
+                    s += String.fromCharCode(view.getUint16(start + j));
+                return s;
+            }
+            if (platform === 1 && macName === null) {
+                let s = "";
+                for (let j = 0; j < length; j++)
+                    s += String.fromCharCode(view.getUint8(start + j));
+                macName = s;
+            }
+        }
+        return macName;
+    }
+    return null;
+}
+
+/** Copy one collection face into its own sfnt buffer. */
+function rebuildFace(data: ArrayBuffer, view: DataView, base: number): ArrayBuffer {
+    const numTables = view.getUint16(base + 4);
+    const headerSize = 12 + numTables * 16;
+    const pad4 = (n: number) => (n + 3) & ~3;
+    let total = headerSize;
+    for (let i = 0; i < numTables; i++) {
+        total = pad4(total) + view.getUint32(base + 12 + i * 16 + 12);
+    }
+    const out = new Uint8Array(pad4(total));
+    const outView = new DataView(out.buffer);
+    // Face header: sfnt version, numTables and the binary-search fields.
+    out.set(new Uint8Array(data, base, 12), 0);
+    let offset = headerSize;
+    for (let i = 0; i < numTables; i++) {
+        const src = base + 12 + i * 16;
+        const dst = 12 + i * 16;
+        const length = view.getUint32(src + 12);
+        offset = pad4(offset);
+        outView.setUint32(dst, view.getUint32(src)); // tag
+        outView.setUint32(dst + 4, view.getUint32(src + 4)); // checksum
+        outView.setUint32(dst + 8, offset);
+        outView.setUint32(dst + 12, length);
+        out.set(new Uint8Array(data, view.getUint32(src + 8), length), offset);
+        offset += length;
+    }
+    return out.buffer as ArrayBuffer;
+}

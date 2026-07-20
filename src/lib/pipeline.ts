@@ -28,6 +28,16 @@ export interface ProgressInfo {
 }
 export type ProgressCallback = (info: ProgressInfo) => void;
 
+/**
+ * Supplies the bytes of installed fonts by PostScript name (Local Font
+ * Access API, main thread). The PDF path calls it for fonts the document
+ * references but does not embed; names it cannot supply are simply absent
+ * from the result.
+ */
+export type LocalFontResolver = (
+    postscriptNames: string[],
+) => Promise<Record<string, ArrayBuffer>>;
+
 export interface EcoResult {
     /** Download name — identical to the uploaded file's name. */
     fileName: string;
@@ -56,11 +66,13 @@ export async function processUpload(
     data: ArrayBuffer,
     intensityPercent: number,
     onProgress?: ProgressCallback,
+    resolveLocalFonts?: LocalFontResolver,
 ): Promise<EcoResult> {
     const intensity = Math.min(Math.max(intensityPercent, 1), 20) / 100;
     if (ZIP_RE.test(fileName)) return processZip(fileName, data, intensity, onProgress);
     if (FONT_RE.test(fileName)) return processSingleFont(fileName, data, intensity, onProgress);
-    if (PDF_RE.test(fileName)) return processPdfUpload(fileName, data, intensity, onProgress);
+    if (PDF_RE.test(fileName))
+        return processPdfUpload(fileName, data, intensity, onProgress, resolveLocalFonts);
     throw new Error(
         "Unsupported file type — upload a .pdf document, a .zip archive, or a font (.ttf, .otf, .woff, .woff2).",
     );
@@ -193,10 +205,11 @@ async function processPdfUpload(
     data: ArrayBuffer,
     intensity: number,
     onProgress?: ProgressCallback,
+    resolveLocalFonts?: LocalFontResolver,
 ): Promise<EcoResult> {
     // pdf-lib is sizable — load it only when a PDF actually arrives.
     const { processPdf } = await import("./pdf");
-    const result = await processPdf(data, intensity, onProgress);
+    const result = await processPdf(data, intensity, onProgress, resolveLocalFonts);
     return {
         fileName,
         mimeType: "application/pdf",

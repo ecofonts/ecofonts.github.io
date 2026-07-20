@@ -64,6 +64,7 @@ export async function ecoProcessTrueType(
     data: Uint8Array,
     intensity: number,
     onGlyph?: (done: number, total: number) => void,
+    keepGlyphs?: Set<number>,
 ): Promise<EcoTrueTypeResult> {
     // Copy into an owned, offset-free buffer so DataView indices are simple.
     const bytes = new Uint8Array(data);
@@ -99,6 +100,29 @@ export async function ecoProcessTrueType(
                 : view.getUint32(loca.offset + i * 4);
     }
 
+    // When a keep set is given (embedding an installed font into a PDF —
+    // documents reach at most 256 codes of a simple font, the full face may
+    // hold thousands of glyphs), glyphs outside it are emptied instead of
+    // copied: their metrics survive in hmtx but their outlines vanish, which
+    // keeps the embedded file small. Expand the set over composite
+    // components first so kept glyphs never lose a piece.
+    let keep: Set<number> | null = null;
+    if (keepGlyphs) {
+        keep = new Set(keepGlyphs);
+        keep.add(0); // .notdef
+        const stack = [...keep];
+        while (stack.length > 0) {
+            const gid = stack.pop()!;
+            if (gid < 0 || gid >= numGlyphs) continue;
+            for (const component of compositeComponents(view, glyf.offset, offsets, gid)) {
+                if (!keep.has(component)) {
+                    keep.add(component);
+                    stack.push(component);
+                }
+            }
+        }
+    }
+
     const segLen = upem / 50; // curve flattening tolerance, as in ecofont.ts
     const newGlyphs: Uint8Array[] = new Array(numGlyphs);
     let glyphsChanged = 0;
@@ -106,6 +130,14 @@ export async function ecoProcessTrueType(
     let maxContours = 0;
 
     for (let gid = 0; gid < numGlyphs; gid++) {
+        if (keep && !keep.has(gid)) {
+            newGlyphs[gid] = new Uint8Array(0);
+            if ((gid + 1) % YIELD_EVERY === 0) {
+                onGlyph?.(gid + 1, numGlyphs);
+                await new Promise((resolve) => setTimeout(resolve, 0));
+            }
+            continue;
+        }
         const raw = bytes.subarray(glyf.offset + offsets[gid], glyf.offset + offsets[gid + 1]);
         let replacement: Uint8Array | null = null;
         if (raw.length > 0) {
@@ -617,6 +649,110 @@ function pad4(n: number): number {
 
 function f2dot14(v: number): number {
     return v / 16384;
+}
+
+/** Glyph ids referenced by a composite glyph (empty for simple glyphs). */
+function compositeComponents(
+    view: DataView,
+    glyfBase: number,
+    offsets: number[],
+    gid: number,
+): number[] {
+    const start = glyfBase + offsets[gid];
+    const end = glyfBase + offsets[gid + 1];
+    if (end <= start || view.getInt16(start) >= 0) return [];
+    const out: number[] = [];
+    let p = start + 10;
+    for (;;) {
+        const flags = view.getUint16(p);
+        out.push(view.getUint16(p + 2));
+        p += 4 + (flags & 0x0001 ? 4 : 2); // args
+        if (flags & 0x0008) p += 2; // WE_HAVE_A_SCALE
+        else if (flags & 0x0040) p += 4; // X_AND_Y_SCALE
+        else if (flags & 0x0080) p += 8; // TWO_BY_TWO
+        if (!(flags & 0x0020)) break; // MORE_COMPONENTS
+    }
+    return out;
+}
+
+/**
+ * Resolve Unicode code points to glyph ids through the font's own cmap
+ * (Windows/Unicode or pure-Unicode subtables, formats 4 and 12). Returns
+ * null when the font has no subtable we can read — callers should then
+ * behave as if every glyph were reachable.
+ */
+export function mapUnicodesToGlyphs(
+    data: Uint8Array,
+    unicodes: Iterable<number>,
+): Set<number> | null {
+    const cmap = findSfntTable(data, "cmap");
+    if (!cmap) return null;
+    const v = new DataView(cmap.buffer, cmap.byteOffset, cmap.byteLength);
+    const numSubtables = v.getUint16(2);
+    let best = -1;
+    let bestScore = 0;
+    for (let i = 0; i < numSubtables; i++) {
+        const platform = v.getUint16(4 + i * 8);
+        const encoding = v.getUint16(6 + i * 8);
+        const offset = v.getUint32(8 + i * 8);
+        const score =
+            platform === 3 && encoding === 10
+                ? 4
+                : platform === 3 && encoding === 1
+                  ? 3
+                  : platform === 0
+                    ? 2
+                    : 0;
+        if (score > bestScore) {
+            bestScore = score;
+            best = offset;
+        }
+    }
+    if (best < 0) return null;
+
+    const format = v.getUint16(best);
+    const out = new Set<number>();
+    if (format === 4) {
+        const segCount = v.getUint16(best + 6) / 2;
+        const endBase = best + 14;
+        const startBase = endBase + segCount * 2 + 2;
+        const deltaBase = startBase + segCount * 2;
+        const rangeBase = deltaBase + segCount * 2;
+        for (const u of unicodes) {
+            if (u > 0xffff) continue;
+            for (let s = 0; s < segCount; s++) {
+                if (u > v.getUint16(endBase + s * 2)) continue;
+                const segStart = v.getUint16(startBase + s * 2);
+                if (u < segStart) break;
+                const rangeOffset = v.getUint16(rangeBase + s * 2);
+                let gid: number;
+                if (rangeOffset === 0) {
+                    gid = (u + v.getInt16(deltaBase + s * 2)) & 0xffff;
+                } else {
+                    gid = v.getUint16(rangeBase + s * 2 + rangeOffset + (u - segStart) * 2);
+                    if (gid !== 0) gid = (gid + v.getInt16(deltaBase + s * 2)) & 0xffff;
+                }
+                if (gid !== 0) out.add(gid);
+                break;
+            }
+        }
+    } else if (format === 12) {
+        const nGroups = v.getUint32(best + 12);
+        for (const u of unicodes) {
+            for (let g = 0; g < nGroups; g++) {
+                const p = best + 16 + g * 12;
+                const groupStart = v.getUint32(p);
+                if (u < groupStart) break;
+                if (u <= v.getUint32(p + 4)) {
+                    out.add(v.getUint32(p + 8) + (u - groupStart));
+                    break;
+                }
+            }
+        }
+    } else {
+        return null;
+    }
+    return out;
 }
 
 function concatBytes(parts: Uint8Array[]): Uint8Array {
