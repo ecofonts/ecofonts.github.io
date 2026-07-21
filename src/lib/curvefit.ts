@@ -227,6 +227,16 @@ function generateBezier(pts: Pt[], first: number, last: number, u: number[], tHa
     if (alphaL < epsilon || alphaR < epsilon) {
         // Degenerate solution — fall back to the Wu/Barsky third-of-chord rule.
         alphaL = alphaR = chord / 3;
+    } else {
+        // Cap how far the controls may reach. The least-squares solution only
+        // constrains the curve at the sample points, so a run with as many
+        // samples as free parameters (three points) fits "exactly" with
+        // arbitrarily long tangents and balloons far outside the glyph in
+        // between — spikes reaching several times the em. A cubic never needs
+        // more than the chord to span an arc this pipeline produces; where the
+        // cap does hurt, computeMaxError sees it and splits the run instead.
+        alphaL = Math.min(alphaL, chord);
+        alphaR = Math.min(alphaR, chord);
     }
     return [p0, add(p0, mul(tHat1, alphaL)), add(p3, mul(tHat2, alphaR)), p3];
 }

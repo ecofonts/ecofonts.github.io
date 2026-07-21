@@ -122,7 +122,12 @@ Access API where available. No data ever leaves the browser.
   holes, and reassembles the sfnt rewriting **only** glyf/loca (+ minimal
   head/maxp patches). Untouched glyphs keep their original bytes including
   hinting; glyph IDs and widths are preserved exactly, which the PDF's
-  CID-to-GID mapping depends on. Takes an optional `keepGlyphs` set (used
+  CID-to-GID mapping depends on. **A rewritten glyph keeps its original
+  header `xMin`** — never recompute it. hmtx is copied through untouched and
+  rasterizers seat a glyph by translating it `(lsb − xMin)` (FreeType does,
+  so most PDF viewers do), so a recomputed `xMin` slides that glyph sideways
+  and only that one: round-sided letters drift while stems stay put, which
+  looks like broken letter spacing. Takes an optional `keepGlyphs` set (used
   when embedding installed fonts): glyphs outside it are written empty —
   ids and hmtx metrics survive, outlines vanish — after expanding the set
   over composite components. Also exports `mapUnicodesToGlyphs` (cmap

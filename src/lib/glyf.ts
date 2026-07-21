@@ -151,7 +151,8 @@ export async function ecoProcessTrueType(
             if (contours && contours.length > 0) {
                 const holed = subtractEcoHoles(contours, upem, intensity);
                 if (holed && holed.length > 0) {
-                    const serialized = serializeSimpleGlyph(holed, upem);
+                    const original = readGlyphBounds(view, glyf.offset + offsets[gid]);
+                    const serialized = serializeSimpleGlyph(holed, upem, original);
                     if (serialized) {
                         replacement = serialized.bytes;
                         maxPoints = Math.max(maxPoints, serialized.pointCount);
@@ -477,6 +478,7 @@ function flattenQuadContour(
 function serializeSimpleGlyph(
     polys: ClipPaths,
     upem: number,
+    original: Bounds,
 ): { bytes: Uint8Array; pointCount: number; contourCount: number } | null {
     const tolerance = upem * FIT_TOLERANCE_EM;
     const clamp = (v: number): number => Math.max(-32768, Math.min(32767, Math.round(v)));
@@ -522,27 +524,16 @@ function serializeSimpleGlyph(
     }
     if (contours.length === 0) return null;
 
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
     let pointCount = 0;
-    for (const contour of contours) {
-        for (const pt of contour) {
-            if (pt.x < minX) minX = pt.x;
-            if (pt.x > maxX) maxX = pt.x;
-            if (pt.y < minY) minY = pt.y;
-            if (pt.y > maxY) maxY = pt.y;
-        }
-        pointCount += contour.length;
-    }
+    for (const contour of contours) pointCount += contour.length;
+    const box = storedBounds(original, outlineBounds(contours));
 
     const w = new ByteWriter();
     w.int16(contours.length);
-    w.int16(minX);
-    w.int16(minY);
-    w.int16(maxX);
-    w.int16(maxY);
+    w.int16(box.minX);
+    w.int16(box.minY);
+    w.int16(box.maxX);
+    w.int16(box.maxY);
     let end = -1;
     for (const contour of contours) {
         end += contour.length;
@@ -590,6 +581,113 @@ function serializeSimpleGlyph(
     if (w.length % 2 === 1) w.uint8(0); // keep loca offsets even
 
     return { bytes: w.toUint8Array(), pointCount, contourCount: contours.length };
+}
+
+interface Bounds {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+}
+
+/** The bounding box in a glyph's header (simple and composite alike). */
+function readGlyphBounds(view: DataView, start: number): Bounds {
+    return {
+        minX: view.getInt16(start + 2),
+        minY: view.getInt16(start + 4),
+        maxX: view.getInt16(start + 6),
+        maxY: view.getInt16(start + 8),
+    };
+}
+
+/**
+ * The box to store for a rewritten glyph: the original xMin, and the other
+ * three edges widened wherever the new outline reaches past the original.
+ *
+ * xMin is the one edge that is not bookkeeping. Since hmtx is copied through
+ * untouched, moving xMin moves the glyph: the rasterizer translates the
+ * outline by (lsb − xMin) to seat it on its origin, so a recomputed xMin
+ * slides the glyph sideways while its neighbours stay put — which reads as
+ * broken letter spacing, and only for the letters whose left edge is a curve.
+ * A tight box would differ from the original for two ordinary reasons:
+ * refitted curves miss the flattened silhouette by up to the fit tolerance,
+ * and fonts store boxes bounding things we legitimately drop (Calibri's
+ * accents carry a one-point contour that draws nothing yet sets xMin). Neither
+ * is worth moving a glyph over. The other edges do not affect placement in
+ * horizontal layout, so they may grow to stay honest.
+ */
+function storedBounds(original: Bounds, outline: Bounds): Bounds {
+    return {
+        minX: original.minX,
+        minY: Math.min(original.minY, outline.minY),
+        maxX: Math.max(original.maxX, outline.maxX),
+        maxY: Math.max(original.maxY, outline.maxY),
+    };
+}
+
+/**
+ * True bounding box of a set of glyf contours: on-curve points plus the
+ * extrema of every quadratic segment (including the implied on-curve midpoints
+ * between consecutive off-curve points).
+ *
+ * Taking the raw min/max over all points instead would fold in the off-curve
+ * controls, which lie *outside* the curve — a round left side like 'o' pushes
+ * its control point far past the real edge, which is exactly the kind of
+ * xMin drift that moves the glyph off its origin (see storedBounds).
+ */
+function outlineBounds(contours: { x: number; y: number; on: boolean }[][]): Bounds {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    const spanX = (v: number): void => {
+        if (v < minX) minX = v;
+        if (v > maxX) maxX = v;
+    };
+    const spanY = (v: number): void => {
+        if (v < minY) minY = v;
+        if (v > maxY) maxY = v;
+    };
+    /** Where a quadratic turns around on one axis, if it turns at all inside. */
+    const extremum = (p0: number, c: number, p1: number): number | null => {
+        const denom = p0 - 2 * c + p1;
+        if (denom === 0) return null;
+        const t = (p0 - c) / denom;
+        if (t <= 0 || t >= 1) return null;
+        const mt = 1 - t;
+        return mt * mt * p0 + 2 * mt * t * c + t * t * p1;
+    };
+
+    for (const contour of contours) {
+        const n = contour.length;
+        for (let i = 0; i < n; i++) {
+            const pt = contour[i];
+            if (pt.on) {
+                spanX(pt.x);
+                spanY(pt.y);
+                continue;
+            }
+            const prev = contour[(i - 1 + n) % n];
+            const next = contour[(i + 1) % n];
+            const from = prev.on ? prev : { x: (prev.x + pt.x) / 2, y: (prev.y + pt.y) / 2 };
+            const to = next.on ? next : { x: (pt.x + next.x) / 2, y: (pt.y + next.y) / 2 };
+            spanX(from.x);
+            spanY(from.y);
+            spanX(to.x);
+            spanY(to.y);
+            const ex = extremum(from.x, pt.x, to.x);
+            if (ex !== null) spanX(ex);
+            const ey = extremum(from.y, pt.y, to.y);
+            if (ey !== null) spanY(ey);
+        }
+    }
+    // Round outwards so the stored box always contains the curve.
+    return {
+        minX: Math.floor(minX),
+        minY: Math.floor(minY),
+        maxX: Math.ceil(maxX),
+        maxY: Math.ceil(maxY),
+    };
 }
 
 /** Rebuild the sfnt container with some tables replaced. */
