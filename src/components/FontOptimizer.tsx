@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { EcoResult, LocalFontResolver, ProgressInfo } from "../lib/pipeline";
+import { formatError } from "../lib/errorMessage";
 import { validateSelection } from "../lib/limits";
 import "./FontOptimizer.css";
 
@@ -156,9 +157,7 @@ export default function FontOptimizer() {
                             ),
                         );
                     } catch (err) {
-                        failed.push(
-                            `${target.name}: ${err instanceof Error ? err.message : String(err)}`,
-                        );
+                        failed.push(`${target.name}: ${formatError(err)}`);
                     }
                 }
             };
@@ -171,7 +170,7 @@ export default function FontOptimizer() {
                 await runBatch();
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : String(err));
+            setError(formatError(err));
         } finally {
             setResults(collected);
             setFailures(failed);

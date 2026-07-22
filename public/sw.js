@@ -61,13 +61,20 @@ self.addEventListener("fetch", (event) => {
 		caches.match(request).then(
 			(cached) =>
 				cached ??
-				fetch(request).then((response) => {
-					if (response.ok) {
-						const copy = response.clone();
-						caches.open(CACHE).then((cache) => cache.put(request, copy));
-					}
-					return response;
-				}),
+				fetch(request)
+					.then((response) => {
+						if (response.ok) {
+							const copy = response.clone();
+							caches.open(CACHE).then((cache) => cache.put(request, copy));
+						}
+						return response;
+					})
+					// Without this, a dropped connection rejects the promise given
+					// to respondWith(), which surfaces as an opaque failure rather
+					// than a network error. The processing chunks are fetched
+					// on demand mid-job, so that lands in the middle of an
+					// optimization run and gets reported as a broken file.
+					.catch(() => Response.error()),
 		),
 	);
 });

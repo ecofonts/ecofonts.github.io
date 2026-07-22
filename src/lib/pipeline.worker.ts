@@ -14,6 +14,7 @@
  * request arrives — the Local Font Access API only exists on the main
  * thread, so the client answers from there.
  */
+import { describeError, type ErrorReport } from "./errorMessage";
 import {
     processUpload,
     type EcoResult,
@@ -43,7 +44,7 @@ export type EcoJobResponse =
     | { id: number; type: "progress"; info: ProgressInfo }
     | { id: number; type: "need-local-fonts"; names: string[] }
     | { id: number; type: "done"; result: EcoResult }
-    | { id: number; type: "error"; message: string };
+    | ({ id: number; type: "error" } & ErrorReport);
 
 // Typed as `Worker` to avoid the `webworker` TS lib, which conflicts with
 // `dom` inside a single tsconfig. The relevant members are identical.
@@ -88,10 +89,13 @@ ctx.onmessage = async (event: MessageEvent<EcoWorkerRequest>) => {
         ];
         ctx.postMessage({ id, type: "done", result } satisfies EcoJobResponse, transfer);
     } catch (err) {
+        // Name and stack included: the browser APIs in this path (the File
+        // read above, the dynamic imports inside the pipeline) throw
+        // DOMExceptions whose message on its own says nothing useful.
         ctx.postMessage({
             id,
             type: "error",
-            message: err instanceof Error ? err.message : String(err),
+            ...describeError(err),
         } satisfies EcoJobResponse);
     } finally {
         fontWaiters.delete(id);

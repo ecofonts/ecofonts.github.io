@@ -7,6 +7,7 @@
  * the main thread, so the resolver runs here and the bytes are transferred
  * into the worker.
  */
+import { rebuildError } from "./errorMessage";
 import type { EcoResult, LocalFontResolver, ProgressCallback } from "./pipeline";
 import type { EcoJobResponse, EcoWorkerRequest } from "./pipeline.worker";
 
@@ -64,7 +65,9 @@ function getWorker(): Worker | null {
             job.resolve(message.result);
         } else {
             pending.delete(message.id);
-            job.reject(new Error(message.message));
+            // Rebuilt rather than re-wrapped, so the failure keeps the name
+            // and stack it had inside the worker.
+            job.reject(rebuildError(message));
         }
     };
     // Fires when the worker script fails to load or evaluate (no module
